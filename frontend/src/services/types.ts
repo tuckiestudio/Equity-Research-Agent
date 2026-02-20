@@ -1,0 +1,107 @@
+// User types
+export interface User {
+  id: string
+  email: string
+  full_name: string
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+}
+
+// Stock types
+export interface Stock {
+  id: string
+  ticker: string
+  company_name: string
+  sector?: string
+  industry?: string
+  market_cap?: number
+  current_price?: number
+  change_percent?: number
+}
+
+export interface StockSearchResult {
+  ticker: string
+  name: string
+  exchange: string
+}
+
+export interface StockDetail extends Stock {
+  description?: string
+  country?: string
+  currency?: string
+  ipo_date?: string
+  website?: string
+  pe_ratio?: number
+  ev_ebitda?: number
+  dividend_yield?: number
+}
+
+// Portfolio types
+export interface Portfolio {
+  id: string
+  name: string
+  description?: string
+  user_id: string
+  created_at: string
+  updated_at: string
+  stocks: Stock[]
+}
+
+export interface CreatePortfolioRequest {
+  name: string
+  description?: string
+}
+
+export interface AddStockRequest {
+  ticker: string
+}
+
+// News types
+export interface NewsArticle {
+  id: string
+  ticker: string
+  title: string
+  content: string
+  source: string
+  url: string
+  published_date: string
+  sentiment?: 'positive' | 'negative' | 'neutral'
+}
+
+// Thesis types
+export interface Thesis {
+  id: string
+  ticker: string
+  title: string
+  content: string
+  thesis_type: 'bull' | 'bear'
+  status: 'active' | 'closed'
+  created_at: string
+  updated_at: string
+}
+
+// Note types
+export interface Note {
+  id: string
+  ticker: string
+  title: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+// API Response wrapper
+export interface ApiResponse<T> {
+  data: T
+  message?: string
+}
+
+// Error response
+export interface ApiError {
+  code: string
+  detail: string
+  status_code: number
+}

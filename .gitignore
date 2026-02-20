@@ -77,6 +77,11 @@ frontend/.vscode/*
 frontend/!.vscode/extensions.json
 frontend/.idea
 
+# Frontend - E2E test artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/playwright/.cache/
+
 # Package locks
 package-lock.json
 yarn.lock

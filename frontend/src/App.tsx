@@ -1,15 +1,24 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
-import './App.css'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import AppShell from '@/components/layout/AppShell'
+import Login from '@/pages/Login'
+import Register from '@/pages/Register'
+import Dashboard from '@/pages/Dashboard'
+import StockDetail from '@/pages/StockDetail'
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/stock/:ticker" element={<StockDetail />} />
+          </Route>
+        </Route>
+      </Routes>
     </Router>
   )
 }
