@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Any
 """
 Redis caching layer for data providers.
@@ -5,7 +6,6 @@ Redis caching layer for data providers.
 Sits between the registry and providers to cache frequently accessed data
 with category-specific TTL strategies.
 """
-from __future__ import annotations
 
 import asyncio
 import json

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Any
 """
 SEC EDGAR data provider implementation.
@@ -7,7 +8,6 @@ https://www.sec.gov/edgar/sec-api-documentation
 Fetches SEC filing data from the EDGAR system.
 Note: This is a specialized provider with its own interface.
 """
-from __future__ import annotations
 
 import asyncio
 from datetime import date

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Any
 """
 Financial Modeling Prep (FMP) data provider implementation.
@@ -6,7 +7,6 @@ https://financialmodelingprep.com/developer/docs/
 
 Implements FundamentalsProvider, PriceProvider, and ProfileProvider protocols.
 """
-from __future__ import annotations
 
 import asyncio
 from datetime import date, datetime

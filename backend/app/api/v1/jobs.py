@@ -1,8 +1,8 @@
+from __future__ import annotations
 from typing import Optional, Any
 """
 Background job management API endpoints.
 """
-from __future__ import annotations
 
 from typing import Any
 

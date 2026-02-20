@@ -1,7 +1,7 @@
+from __future__ import annotations
 from typing import Optional
 
 """Comparable company analysis engine."""
-from __future__ import annotations
 
 import asyncio
 import math

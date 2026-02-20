@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from typing import Optional, Any
 """
 Assumption set database model for financial modeling.
 """
-from __future__ import annotations
 
 import json
 import uuid

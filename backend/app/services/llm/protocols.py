@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Any
 """Protocol definitions for LLM providers.
 
@@ -5,7 +6,6 @@ All LLM providers must implement the LLMProvider protocol to ensure
 consistent behavior across different AI services.
 """
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Protocol, runtime_checkable
