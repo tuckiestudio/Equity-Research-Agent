@@ -25,3 +25,6 @@ class User(Base, UUIDMixin, TimestampMixin):
     portfolios: Mapped[list["Portfolio"]] = relationship(  # type: ignore[name-defined]
         "Portfolio", back_populates="user", cascade="all, delete-orphan"
     )
+    settings: Mapped["UserSettings"] = relationship(  # type: ignore[name-defined]
+        "UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )

@@ -14,6 +14,7 @@ from app.api.v1.news import router as news_router
 from app.api.v1.notes import router as notes_router
 from app.api.v1.portfolios import router as portfolios_router
 from app.api.v1.scenarios import router as scenarios_router
+from app.api.v1.settings import router as settings_router
 from app.api.v1.stocks import router as stocks_router
 from app.api.v1.thesis import router as thesis_router
 from app.api.v1.tiers import router as tiers_router
@@ -37,6 +38,7 @@ api_v1_router.include_router(comps_router)
 api_v1_router.include_router(thesis_router)
 api_v1_router.include_router(watch_router)
 api_v1_router.include_router(waterfall_router)
+api_v1_router.include_router(settings_router)
 
 
 @api_v1_router.get("/health")

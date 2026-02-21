@@ -31,7 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Start background task scheduler
     from app.tasks.scheduler import start_scheduler, stop_scheduler
+    from app.services.data.registry import initialize_providers
     try:
+        initialize_providers()
+        logger.info("Data providers initialized")
         await start_scheduler()
         logger.info("Background task scheduler started")
     except Exception as e:

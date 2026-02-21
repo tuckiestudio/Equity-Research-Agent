@@ -58,6 +58,7 @@ class CompsEngine:
         peers: list[str],
         consensus_forecasts: dict[str, dict[str, float]] | None = None,
         llm_forecasts: dict[str, dict[str, float]] | None = None,
+        user_settings=None,
     ) -> CompsResult:
         """Analyze a target company against peers using valuation multiples.
 
@@ -66,6 +67,7 @@ class CompsEngine:
             peers: List of peer tickers.
             consensus_forecasts: Optional consensus EPS/EBITDA forecasts by ticker.
             llm_forecasts: Optional LLM EPS/EBITDA forecasts by ticker.
+            user_settings: Optional UserSettings instance.
 
         Returns:
             CompsResult with metrics and implied values.
@@ -74,8 +76,8 @@ class CompsEngine:
         peer_tickers = [ticker.upper() for ticker in peers if ticker.upper() != normalized_target]
         tickers = [normalized_target] + peer_tickers
 
-        fundamentals = get_fundamentals()
-        profiles = get_profiles()
+        fundamentals = get_fundamentals(user_settings)
+        profiles = get_profiles(user_settings)
 
         ratio_tasks = [fundamentals.get_financial_ratios(ticker) for ticker in tickers]
         profile_tasks = [profiles.get_company_profile(ticker) for ticker in tickers]

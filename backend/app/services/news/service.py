@@ -53,6 +53,7 @@ class NewsService:
         current_thesis: Optional[str],
         db: AsyncSession,
         limit: int = 20,
+        user_settings=None,
     ) -> list[NewsAnalysis]:
         """Fetch news for a ticker and run AI analysis on each article.
 
@@ -68,7 +69,7 @@ class NewsService:
             List of NewsAnalysis records saved to database
         """
         # Fetch news from the data provider
-        news_provider = get_news()
+        news_provider = get_news(user_settings)
         articles = await news_provider.get_news(ticker=ticker, limit=limit)
 
         if not articles:

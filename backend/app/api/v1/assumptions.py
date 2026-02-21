@@ -96,7 +96,7 @@ def db_to_response(assumption: AssumptionSet) -> AssumptionResponse:
     )
 
 
-async def get_latest_financials(ticker: str):
+async def get_latest_financials(ticker: str, user_settings):
     """Fetch the latest financials for a stock.
 
     Returns:
@@ -106,7 +106,7 @@ async def get_latest_financials(ticker: str):
         ProviderError: If unable to fetch financials
         ValidationError: If financials are missing required data
     """
-    fundamentals = get_fundamentals()
+    fundamentals = get_fundamentals(user_settings)
 
     # Get the latest annual data
     income_statements = await fundamentals.get_income_statement(ticker, period="annual", limit=1)
@@ -408,10 +408,10 @@ async def compute_dcf(
             )
 
     # Fetch latest financials
-    latest_income, latest_balance, latest_cashflow = await get_latest_financials(ticker)
+    latest_income, latest_balance, latest_cashflow = await get_latest_financials(ticker, current_user.settings)
 
     # Get current price
-    prices = get_prices()
+    prices = get_prices(current_user.settings)
     quote = await prices.get_quote(ticker)
     current_price = quote.price
 

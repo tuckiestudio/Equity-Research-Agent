@@ -5,6 +5,7 @@ import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import Dashboard from '@/pages/Dashboard'
 import StockDetail from '@/pages/StockDetail'
+import Settings from '@/pages/Settings'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route element={<AppShell />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/stock/:ticker" element={<StockDetail />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
       </Routes>

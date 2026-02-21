@@ -59,7 +59,7 @@ async def export_model(
     summary = compute_weighted_summary(list(scenarios))
 
     comps_engine = CompsEngine()
-    comps_result = await comps_engine.analyze(ticker, peers_list)
+    comps_result = await comps_engine.analyze(ticker, peers_list, user_settings=current_user.settings)
 
     exporter = ModelExporter()
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")

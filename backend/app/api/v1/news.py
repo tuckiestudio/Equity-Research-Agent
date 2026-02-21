@@ -137,6 +137,7 @@ async def analyze_news(
         current_thesis=request.thesis,
         db=db,
         limit=request.limit,
+        user_settings=current_user.settings,
     )
 
     return [NewsAnalysisResponse.from_analysis(a) for a in analyses]

@@ -5,6 +5,7 @@ import {
   Search,
   LogOut,
   TrendingUp,
+  Settings,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 
@@ -13,6 +14,7 @@ const navItems = [
   { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { path: '/search', label: 'Search', icon: Search },
   { path: '/market', label: 'Market', icon: TrendingUp },
+  { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -48,10 +50,9 @@ export default function Sidebar() {
               to={item.path}
               className={`
                 flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
-                ${
-                  isActive(item.path)
-                    ? 'bg-accent text-white shadow-lg shadow-accent/20'
-                    : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+                ${isActive(item.path)
+                  ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                  : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
                 }
               `}
             >

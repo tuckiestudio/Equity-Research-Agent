@@ -105,3 +105,32 @@ export interface ApiError {
   detail: string
   status_code: number
 }
+
+// User Settings
+export interface UserSettings {
+  fundamentals_provider: string
+  price_provider: string
+  profile_provider: string
+  news_provider: string
+  fmp_api_key?: string
+  finnhub_api_key?: string
+  eodhd_api_key?: string
+  polygon_api_key?: string
+  alpha_vantage_api_key?: string
+  openai_api_key?: string
+  anthropic_api_key?: string
+}
+
+export interface UserSettingsUpdate {
+  fundamentals_provider?: string
+  price_provider?: string
+  profile_provider?: string
+  news_provider?: string
+  fmp_api_key?: string
+  finnhub_api_key?: string
+  eodhd_api_key?: string
+  polygon_api_key?: string
+  alpha_vantage_api_key?: string
+  openai_api_key?: string
+  anthropic_api_key?: string
+}

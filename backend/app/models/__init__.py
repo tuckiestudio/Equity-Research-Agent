@@ -10,4 +10,5 @@ from app.models.stock import Portfolio, Stock  # noqa: F401
 from app.models.thesis import Thesis  # noqa: F401
 from app.models.thesis_change import ThesisChange  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.models.user_settings import UserSettings  # noqa: F401
 from app.models.watch_item import WatchItem  # noqa: F401

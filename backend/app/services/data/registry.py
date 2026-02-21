@@ -1,13 +1,14 @@
 """
 Data provider registry — config-driven provider selection.
 
-Switch providers by changing env vars. Zero code changes needed.
+Switch providers by changing user settings or env vars.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+import threading
 
-from app.core.config import settings
+from app.core.config import settings as global_settings
 from app.core.logging import get_logger
 from app.services.data.protocols import (
     FundamentalsProvider,
@@ -15,6 +16,9 @@ from app.services.data.protocols import (
     PriceProvider,
     ProfileProvider,
 )
+
+if TYPE_CHECKING:
+    from app.models.user_settings import UserSettings
 
 logger = get_logger(__name__)
 
@@ -24,125 +28,141 @@ _price_providers: dict[str, type] = {}
 _profile_providers: dict[str, type] = {}
 _news_providers: dict[str, type] = {}
 
-# Active provider instances (set at startup)
-_fundamentals: Optional[FundamentalsProvider] = None
-_prices: Optional[PriceProvider] = None
-_profiles: Optional[ProfileProvider] = None
-_news: Optional[NewsProvider] = None
+# Cached provider instances keyed by (provider_name, api_key)
+_fundamentals_instances: dict[tuple[str, str], FundamentalsProvider] = {}
+_price_instances: dict[tuple[str, str], PriceProvider] = {}
+_profile_instances: dict[tuple[str, str], ProfileProvider] = {}
+_news_instances: dict[tuple[str, str], NewsProvider] = {}
 
+_lock = threading.Lock()
 
 def register_fundamentals(name: str, cls: type) -> None:
-    """Register a fundamentals provider class."""
     _fundamentals_providers[name] = cls
 
-
 def register_prices(name: str, cls: type) -> None:
-    """Register a price provider class."""
     _price_providers[name] = cls
 
-
 def register_profiles(name: str, cls: type) -> None:
-    """Register a profile provider class."""
     _profile_providers[name] = cls
 
-
 def register_news(name: str, cls: type) -> None:
-    """Register a news provider class."""
     _news_providers[name] = cls
 
+def _get_api_key(provider: str, user_settings: Optional[UserSettings] = None) -> str:
+    """Look up the API key for a provider from user settings with fallback to env."""
+    # First try user settings
+    if user_settings:
+        if provider == "fmp" and user_settings.fmp_api_key:
+            return user_settings.fmp_api_key
+        elif provider == "finnhub" and user_settings.finnhub_api_key:
+            return user_settings.finnhub_api_key
+        elif provider == "alpha_vantage" and user_settings.alpha_vantage_api_key:
+            return user_settings.alpha_vantage_api_key
+        elif provider == "eodhd" and user_settings.eodhd_api_key:
+            return user_settings.eodhd_api_key
+        elif provider == "polygon" and user_settings.polygon_api_key:
+            return user_settings.polygon_api_key
 
-def _get_api_key(provider: str) -> str:
-    """Look up the API key for a provider from settings."""
+    # Fallback to global config
     key_map = {
-        "fmp": settings.FMP_API_KEY,
-        "finnhub": settings.FINNHUB_API_KEY,
-        "alpha_vantage": settings.ALPHA_VANTAGE_API_KEY,
-        "eodhd": settings.EODHD_API_KEY,
-        "polygon": settings.POLYGON_API_KEY,
-        "yfinance": "",  # No key needed
-        "sec_edgar": "",  # No key needed
+        "fmp": global_settings.FMP_API_KEY,
+        "finnhub": global_settings.FINNHUB_API_KEY,
+        "alpha_vantage": global_settings.ALPHA_VANTAGE_API_KEY,
+        "eodhd": global_settings.EODHD_API_KEY,
+        "polygon": global_settings.POLYGON_API_KEY,
+        "yfinance": "",
+        "sec_edgar": "",
     }
     return key_map.get(provider, "")
 
-
 def initialize_providers() -> None:
-    """Initialize active providers from config. Call once at startup."""
-    global _fundamentals, _prices, _profiles, _news
-
+    """Initialize providers to trigger registration and preload global providers."""
     # Import all provider modules to trigger registration
-    # Import each module individually to handle missing providers gracefully
     try:
         from app.services.data.providers import fmp  # noqa: F401
     except ImportError:
-        pass  # FMP provider not implemented yet
+        pass
 
     try:
         from app.services.data.providers import finnhub  # noqa: F401
     except ImportError:
-        pass  # Finnhub provider not implemented yet
+        pass
 
     try:
         from app.services.data.providers import yfinance_provider  # noqa: F401
     except ImportError:
-        pass  # yfinance provider not implemented yet
+        pass
 
-    # Fundamentals
-    fund_name = settings.FUNDAMENTALS_PROVIDER
-    if fund_name in _fundamentals_providers:
-        _fundamentals = _fundamentals_providers[fund_name](api_key=_get_api_key(fund_name))
-        logger.info("Fundamentals provider: %s", fund_name)
-    else:
-        logger.warning("Unknown fundamentals provider: %s. Available: %s",
-                        fund_name, list(_fundamentals_providers.keys()))
-
-    # Prices
-    price_name = settings.PRICE_PROVIDER
-    if price_name in _price_providers:
-        _prices = _price_providers[price_name](api_key=_get_api_key(price_name))
-        logger.info("Price provider: %s", price_name)
-    else:
-        logger.warning("Unknown price provider: %s", price_name)
-
-    # Profiles
-    prof_name = settings.PROFILE_PROVIDER
-    if prof_name in _profile_providers:
-        _profiles = _profile_providers[prof_name](api_key=_get_api_key(prof_name))
-        logger.info("Profile provider: %s", prof_name)
-    else:
-        logger.warning("Unknown profile provider: %s", prof_name)
-
-    # News
-    news_name = settings.NEWS_PROVIDER
-    if news_name in _news_providers:
-        _news = _news_providers[news_name](api_key=_get_api_key(news_name))
-        logger.info("News provider: %s", news_name)
-    else:
-        logger.warning("Unknown news provider: %s", news_name)
+    # Pre-warm global providers (those without UserSettings) so background tasks work
+    try:
+        get_fundamentals()
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm global fundamentals provider: {e}")
+        
+    try:
+        get_prices()
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm global price provider: {e}")
+        
+    try:
+        get_profiles()
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm global profile provider: {e}")
+        
+    try:
+        get_news()
+    except Exception as e:
+        logger.warning(f"Failed to pre-warm global news provider: {e}")
 
 
-def get_fundamentals() -> FundamentalsProvider:
-    """Get the active fundamentals provider."""
-    if _fundamentals is None:
-        raise RuntimeError("Fundamentals provider not initialized. Call initialize_providers() first.")
-    return _fundamentals
+def get_fundamentals(user_settings: Optional[UserSettings] = None) -> FundamentalsProvider:
+    provider_name = user_settings.fundamentals_provider if user_settings else global_settings.FUNDAMENTALS_PROVIDER
+    if provider_name not in _fundamentals_providers:
+        raise RuntimeError(f"Unknown fundamentals provider: {provider_name}")
+    
+    api_key = _get_api_key(provider_name, user_settings)
+    cache_key = (provider_name, api_key)
+    
+    with _lock:
+        if cache_key not in _fundamentals_instances:
+            _fundamentals_instances[cache_key] = _fundamentals_providers[provider_name](api_key=api_key)
+        return _fundamentals_instances[cache_key]
 
+def get_prices(user_settings: Optional[UserSettings] = None) -> PriceProvider:
+    provider_name = user_settings.price_provider if user_settings else global_settings.PRICE_PROVIDER
+    if provider_name not in _price_providers:
+        raise RuntimeError(f"Unknown price provider: {provider_name}")
+    
+    api_key = _get_api_key(provider_name, user_settings)
+    cache_key = (provider_name, api_key)
+    
+    with _lock:
+        if cache_key not in _price_instances:
+            _price_instances[cache_key] = _price_providers[provider_name](api_key=api_key)
+        return _price_instances[cache_key]
 
-def get_prices() -> PriceProvider:
-    """Get the active price provider."""
-    if _prices is None:
-        raise RuntimeError("Price provider not initialized. Call initialize_providers() first.")
-    return _prices
+def get_profiles(user_settings: Optional[UserSettings] = None) -> ProfileProvider:
+    provider_name = user_settings.profile_provider if user_settings else global_settings.PROFILE_PROVIDER
+    if provider_name not in _profile_providers:
+        raise RuntimeError(f"Unknown profile provider: {provider_name}")
+    
+    api_key = _get_api_key(provider_name, user_settings)
+    cache_key = (provider_name, api_key)
+    
+    with _lock:
+        if cache_key not in _profile_instances:
+            _profile_instances[cache_key] = _profile_providers[provider_name](api_key=api_key)
+        return _profile_instances[cache_key]
 
-
-def get_profiles() -> ProfileProvider:
-    """Get the active profile provider."""
-    if _profiles is None:
-        raise RuntimeError("Profile provider not initialized. Call initialize_providers() first.")
-    return _profiles
-
-
-def get_news() -> NewsProvider:
-    """Get the active news provider."""
-    if _news is None:
-        raise RuntimeError("News provider not initialized. Call initialize_providers() first.")
-    return _news
+def get_news(user_settings: Optional[UserSettings] = None) -> NewsProvider:
+    provider_name = user_settings.news_provider if user_settings else global_settings.NEWS_PROVIDER
+    if provider_name not in _news_providers:
+        raise RuntimeError(f"Unknown news provider: {provider_name}")
+    
+    api_key = _get_api_key(provider_name, user_settings)
+    cache_key = (provider_name, api_key)
+    
+    with _lock:
+        if cache_key not in _news_instances:
+            _news_instances[cache_key] = _news_providers[provider_name](api_key=api_key)
+        return _news_instances[cache_key]

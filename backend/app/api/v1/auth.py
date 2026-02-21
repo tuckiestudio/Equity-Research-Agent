@@ -16,6 +16,7 @@ from app.core.errors import AppError, AuthenticationError
 from app.core.limiter import limiter
 from app.db.session import get_db
 from app.models.user import User
+from app.models.user_settings import UserSettings
 from app.services.auth import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -66,6 +67,9 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
     )
     db.add(user)
     await db.flush()  # Get the user ID
+
+    settings_row = UserSettings(user_id=user.id)
+    db.add(settings_row)
 
     admin_emails = {
         email.strip().lower()

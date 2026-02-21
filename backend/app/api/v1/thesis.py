@@ -202,6 +202,7 @@ async def generate_thesis(
         stock_id=stock.id,
         user_id=current_user.id,
         db=db,
+        user_settings=current_user.settings,
     )
 
     return db_to_response(thesis)

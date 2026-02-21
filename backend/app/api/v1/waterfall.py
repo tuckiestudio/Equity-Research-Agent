@@ -75,9 +75,9 @@ async def get_assumption_set(
     return assumption
 
 
-async def get_latest_financials(ticker: str):
+async def get_latest_financials(ticker: str, user_settings):
     """Fetch the latest financials for a stock."""
-    fundamentals = get_fundamentals()
+    fundamentals = get_fundamentals(user_settings)
 
     income_statements = await fundamentals.get_income_statement(ticker, period="annual", limit=1)
     balance_sheets = await fundamentals.get_balance_sheet(ticker, period="annual", limit=1)
@@ -173,9 +173,9 @@ async def get_waterfall(
     stock = await get_stock_by_ticker(ticker, db, current_user)
     assumption = await resolve_assumption(stock, assumption_id, current_user, db)
 
-    latest_income, latest_balance, latest_cashflow = await get_latest_financials(ticker)
+    latest_income, latest_balance, latest_cashflow = await get_latest_financials(ticker, current_user.settings)
 
-    prices = get_prices()
+    prices = get_prices(current_user.settings)
     quote = await prices.get_quote(ticker)
     current_price = quote.price
 

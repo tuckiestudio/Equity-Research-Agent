@@ -31,7 +31,7 @@ class CompSuggestionEngine:
         """Initialize the suggestion engine."""
         self._llm = llm_router or LLMRouter()
 
-    async def suggest_peers(self, ticker: str, limit: int = 5) -> list[CompSuggestion]:
+    async def suggest_peers(self, ticker: str, limit: int = 5, user_settings=None) -> list[CompSuggestion]:
         """Suggest comparable companies for a target ticker.
 
         Args:
@@ -42,7 +42,7 @@ class CompSuggestionEngine:
             List of validated comp suggestions.
         """
         normalized = ticker.upper()
-        profiles = get_profiles()
+        profiles = get_profiles(user_settings)
 
         try:
             target_profile = await profiles.get_company_profile(normalized)

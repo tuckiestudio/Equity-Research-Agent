@@ -15,6 +15,9 @@ from app.core.errors import NotFoundError
 from app.db.session import get_db
 from app.models.stock import Stock
 from app.models.user import User
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 
@@ -34,7 +37,13 @@ class StockResponse(BaseModel):
 
 class StockDetailResponse(StockResponse):
     """Stock with live data (price, ratios, etc.) — populated from data providers."""
-    pass  # Extended in Phase 3 when provider data is wired up
+    current_price: Optional[float] = None
+    change_percent: Optional[float] = None
+    market_cap: Optional[float] = None
+    pe_ratio: Optional[float] = None
+    ev_ebitda: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    description: Optional[str] = None
 
 
 # --- Endpoints ---
@@ -71,7 +80,55 @@ async def get_stock(
     stock = result.scalar_one_or_none()
     if not stock:
         raise NotFoundError("Stock", ticker)
+
+    # Fetch live data from providers
+    from app.services.data.registry import get_fundamentals, get_prices, get_profiles
+    
+    current_price = None
+    change_percent = None
+    market_cap = None
+    pe_ratio = None
+    ev_ebitda = None
+    dividend_yield = None
+    description = None
+
+    try:
+        prices = get_prices(current_user.settings)
+        quote = await prices.get_quote(ticker.upper())
+        current_price = quote.price
+        change_percent = quote.change_percent
+        market_cap = quote.market_cap
+    except Exception as e:
+        logger.error(f"Failed to fetch price for {ticker}: {e}")
+
+    try:
+        profiles = get_profiles(current_user.settings)
+        profile = await profiles.get_company_profile(ticker.upper())
+        description = profile.description
+    except Exception as e:
+        logger.error(f"Failed to fetch profile for {ticker}: {e}")
+
+    try:
+        fundamentals = get_fundamentals(current_user.settings)
+        ratios = await fundamentals.get_financial_ratios(ticker.upper())
+        pe_ratio = ratios.pe_ratio
+        ev_ebitda = ratios.ev_to_ebitda
+        dividend_yield = ratios.dividend_yield
+    except Exception as e:
+        logger.error(f"Failed to fetch ratios for {ticker}: {e}")
+
     return StockDetailResponse(
-        id=str(stock.id), ticker=stock.ticker, company_name=stock.company_name,
-        exchange=stock.exchange, sector=stock.sector, industry=stock.industry,
+        id=str(stock.id),
+        ticker=stock.ticker,
+        company_name=stock.company_name,
+        exchange=stock.exchange,
+        sector=stock.sector,
+        industry=stock.industry,
+        current_price=current_price,
+        change_percent=change_percent,
+        market_cap=market_cap,
+        pe_ratio=pe_ratio,
+        ev_ebitda=ev_ebitda,
+        dividend_yield=dividend_yield,
+        description=description,
     )

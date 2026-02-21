@@ -20,7 +20,7 @@ async def suggest_comps(
     """Suggest comparable companies for a target ticker."""
     _ = current_user
     engine = CompSuggestionEngine()
-    return await engine.suggest_peers(ticker=ticker, limit=limit)
+    return await engine.suggest_peers(ticker=ticker, limit=limit, user_settings=current_user.settings)
 
 
 @router.post("/{ticker}/analyze", response_model=CompsResult)
@@ -32,4 +32,4 @@ async def analyze_comps(
     """Analyze comparable companies using the CompsEngine."""
     _ = current_user
     engine = CompsEngine()
-    return await engine.analyze(target_ticker=ticker, peers=peers)
+    return await engine.analyze(target_ticker=ticker, peers=peers, user_settings=current_user.settings)

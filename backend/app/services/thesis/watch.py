@@ -52,6 +52,7 @@ class WatchService:
         stock_id: uuid.UUID,
         user_id: uuid.UUID,
         db: AsyncSession,
+        user_settings=None,
     ) -> list[WatchItem]:
         """Generate watch items using LLM and persist them.
 
@@ -64,7 +65,7 @@ class WatchService:
         Returns:
             List of created WatchItem records
         """
-        profiles = get_profiles()
+        profiles = get_profiles(user_settings)
         profile = await profiles.get_company_profile(ticker)
         company_name = profile.get("companyName", ticker)
 

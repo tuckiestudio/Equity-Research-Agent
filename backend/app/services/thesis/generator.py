@@ -71,6 +71,7 @@ class ThesisService:
         stock_id: uuid.UUID,
         user_id: uuid.UUID,
         db: AsyncSession,
+        user_settings=None,
     ) -> Thesis:
         """Generate an initial investment thesis.
 
@@ -100,14 +101,14 @@ class ThesisService:
         logger.info(f"Generating thesis for {ticker}")
 
         # Step 1: Fetch data from providers
-        profiles = get_profiles()
+        profiles = get_profiles(user_settings)
         profile = await profiles.get_company_profile(ticker)
 
-        fundamentals = get_fundamentals()
+        fundamentals = get_fundamentals(user_settings)
         income = await fundamentals.get_income_statement(ticker, limit=1)
         ratios = await fundamentals.get_financial_ratios(ticker)
 
-        news = get_news()
+        news = get_news(user_settings)
         articles = await news.get_news(ticker, limit=10)
 
         # Step 2: Build financial summary
