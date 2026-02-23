@@ -94,7 +94,7 @@ describe('StockCard Component', () => {
   describe('Styling', () => {
     it('applies positive styling for positive change', () => {
       const stockWithPositiveChange = { ...mockStock, change_percent: 1.5 }
-      const { container } = render(<StockCard stock={stockWithPositiveChange} />)
+      render(<StockCard stock={stockWithPositiveChange} />)
 
       const changeElement = screen.getByText('+1.50%').closest('div')
       expect(changeElement).toHaveClass('bg-success/10', 'text-success')
@@ -102,7 +102,7 @@ describe('StockCard Component', () => {
 
     it('applies negative styling for negative change', () => {
       const stockWithNegativeChange = { ...mockStock, change_percent: -0.75 }
-      const { container } = render(<StockCard stock={stockWithNegativeChange} />)
+      render(<StockCard stock={stockWithNegativeChange} />)
 
       const changeElement = screen.getByText('-0.75%').closest('div')
       expect(changeElement).toHaveClass('bg-danger/10', 'text-danger')
@@ -148,7 +148,7 @@ describe('StockCard Component', () => {
     })
 
     it('displays ticker badge with accent color', () => {
-      const { container } = render(<StockCard stock={mockStock} />)
+      render(<StockCard stock={mockStock} />)
 
       const tickerBadge = screen.getByText('AAPL').closest('div')
       expect(tickerBadge).toHaveClass('bg-accent/20', 'text-accent', 'font-bold')
@@ -217,7 +217,7 @@ describe('StockCard Component', () => {
         company_name: 'Very Long Company Name That Should Be Truncated In The Display'
       }
 
-      const { container } = render(<StockCard stock={longNameStock} />)
+      render(<StockCard stock={longNameStock} />)
 
       const companyName = screen.getByText(/Very Long Company Name/)
       expect(companyName).toHaveClass('truncate')

@@ -27,7 +27,6 @@ vi.mock('@/stores/auth', () => ({
   }))
 }))
 
-import { getMe } from '@/services/auth'
 
 function createWrapper(queryClient: QueryClient) {
   return ({ children }: { children: React.ReactNode }) => (

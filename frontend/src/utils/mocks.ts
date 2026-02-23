@@ -20,7 +20,7 @@ export function setupRouterMocks() {
     return {
       ...actual as any,
       useNavigate: () => mockNavigate,
-      Navigate: ({ to }: { to: string }) => null,
+      Navigate: () => null,
       Outlet: () => null,
     }
   })

@@ -13,6 +13,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from app.core.errors import ProviderError
+from app.core.logging import get_logger
 from app.schemas.financial import (
     BalanceSheet,
     CashFlow,
@@ -477,9 +478,8 @@ class YFinanceProvider:
         """
         Search for tickers by company name or symbol.
 
-        Note: yfinance doesn't have a direct search API. This implementation
-        is a placeholder that returns a result if the query matches exactly.
-        For a production system, consider using another provider for search.
+        Note: yfinance doesn't have a direct search API, so we use an HTTPS GET
+        to the Yahoo Finance v1 search endpoint which returns JSON results.
 
         Args:
             query: Search query (company name or symbol)
@@ -487,29 +487,67 @@ class YFinanceProvider:
         Returns:
             List of matching ticker results
         """
-        # yfinance doesn't provide search functionality
-        # This is a minimal implementation that tries to get info for the query
+        import httpx
+
+        search_url = "https://query1.finance.yahoo.com/v1/finance/search"
+        params = {"q": query, "quotes_count": 10, "country": "US"}
+
         try:
-            ticker_obj = self._get_ticker(query)
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(search_url, params=params)
+                response.raise_for_status()
+                data = response.json()
 
-            def _fetch():
-                return ticker_obj.info
+            results = []
+            quotes = data.get("quotes", [])
 
-            info = await self._run_sync(_fetch)
+            for quote in quotes[:10]:
+                # Filter for equity securities only
+                quote_type = quote.get("quoteType", "")
+                if quote_type != "EQUITY":
+                    continue
 
-            if info and (info.get("longName") or info.get("shortName")):
-                return [
+                symbol = quote.get("symbol", "")
+                if not symbol:
+                    continue
+
+                results.append(
                     TickerSearchResult(
-                        ticker=query.upper(),
-                        name=info.get("longName") or info.get("shortName", ""),
-                        exchange=info.get("exchange"),
+                        ticker=symbol,
+                        name=quote.get("shortname", quote.get("longname", "")),
+                        exchange=quote.get("exchange"),
                         type="stock",
                     )
-                ]
-        except Exception:
-            pass
+                )
 
-        return []
+            return results
+
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.debug(f"Yahoo Finance search failed for '{query}': {e}")
+
+            # Fallback: try exact match as before
+            try:
+                ticker_obj = self._get_ticker(query)
+
+                def _fetch():
+                    return ticker_obj.info
+
+                info = await self._run_sync(_fetch)
+
+                if info and (info.get("longName") or info.get("shortName")):
+                    return [
+                        TickerSearchResult(
+                            ticker=query.upper(),
+                            name=info.get("longName") or info.get("shortName", ""),
+                            exchange=info.get("exchange"),
+                            type="stock",
+                        )
+                    ]
+            except Exception:
+                pass
+
+            return []
 
 
 # Self-registration

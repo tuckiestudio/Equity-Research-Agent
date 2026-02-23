@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddTickerModal from './AddTickerModal'
 import { QueryClient } from '@tanstack/react-query'
@@ -25,15 +25,13 @@ vi.mock('@/services/stocks', () => ({
 
 // Mock the portfolios service
 vi.mock('@/services/portfolios', () => ({
-  addStockToPortfolio: vi.fn(() => Promise.resolve({ data: { success: true } })),
+  addStockToPortfolio: vi.fn(() => Promise.resolve({ data: { message: 'Stock added' } })),
   getPortfolios: vi.fn(() => Promise.resolve({
     data: [
       {
         id: 'portfolio-1',
         name: 'My Portfolio',
-        user_id: 'user-123',
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
+        stock_count: 0,
         stocks: []
       }
     ]
@@ -170,7 +168,7 @@ describe('AddTickerModal Component', () => {
       vi.mocked(searchStocks).mockImplementationOnce(
         () => new Promise(resolve => setTimeout(() => resolve({
           data: [{ ticker: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' }]
-        }), 100))
+        } as any), 100))
       )
 
       const user = userEvent.setup()
@@ -292,7 +290,7 @@ describe('AddTickerModal Component', () => {
     it('disables buttons while adding stock', async () => {
       const user = userEvent.setup()
       vi.mocked(addStockToPortfolio).mockImplementationOnce(
-        () => new Promise(resolve => setTimeout(() => resolve({ data: { success: true } }), 100))
+        () => new Promise(resolve => setTimeout(() => resolve({ data: { message: 'Stock added' } } as any), 100))
       )
 
       renderWithProviders(<AddTickerModal {...defaultProps} />, { queryClient })

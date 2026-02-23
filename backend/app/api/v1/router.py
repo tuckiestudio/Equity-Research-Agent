@@ -10,6 +10,7 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.comps import router as comps_router
 from app.api.v1.export import router as export_router
 from app.api.v1.jobs import router as jobs_router
+from app.api.v1.market import router as market_router
 from app.api.v1.news import router as news_router
 from app.api.v1.notes import router as notes_router
 from app.api.v1.portfolios import router as portfolios_router
@@ -39,6 +40,7 @@ api_v1_router.include_router(thesis_router)
 api_v1_router.include_router(watch_router)
 api_v1_router.include_router(waterfall_router)
 api_v1_router.include_router(settings_router)
+api_v1_router.include_router(market_router)
 
 
 @api_v1_router.get("/health")

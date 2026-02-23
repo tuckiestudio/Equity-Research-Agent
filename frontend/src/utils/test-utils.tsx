@@ -22,11 +22,6 @@ export function createTestQueryClient() {
         retry: false,
       },
     },
-    logger: {
-      log: console.log,
-      warn: console.warn,
-      error: () => {}, // Suppress error logging in tests
-    },
   })
 }
 

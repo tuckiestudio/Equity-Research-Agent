@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Register from './Register'
 import { renderWithProviders, createTestQueryClient } from '@/utils/test-utils'
@@ -304,7 +304,7 @@ describe('Register Page', () => {
       vi.mocked(register).mockImplementationOnce(
         () => new Promise(resolve => setTimeout(() => resolve({
           data: { access_token: 'test-token', token_type: 'bearer' }
-        }), 100))
+        } as any), 100))
       )
 
       renderWithProviders(<Register />, { queryClient })

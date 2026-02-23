@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Login from './Login'
-import { useAuthStore } from '@/stores/auth'
 import { renderWithProviders, createTestQueryClient } from '@/utils/test-utils'
 
 // Mock the auth service
@@ -226,7 +225,7 @@ describe('Login Page', () => {
       vi.mocked(login).mockImplementationOnce(
         () => new Promise(resolve => setTimeout(() => resolve({
           data: { access_token: 'test-token', token_type: 'bearer' }
-        }), 100))
+        } as any), 100))
       )
 
       renderWithProviders(<Login />, { queryClient })

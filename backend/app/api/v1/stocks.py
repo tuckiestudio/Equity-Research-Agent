@@ -54,12 +54,57 @@ async def search_stocks(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[StockResponse]:
-    """Search stocks by ticker or company name."""
+    """Search stocks by ticker or company name. Falls back to yfinance if no local results."""
     query = select(Stock).where(
         Stock.ticker.ilike(f"%{q}%") | Stock.company_name.ilike(f"%{q}%")
     ).limit(20)
     result = await db.execute(query)
     stocks = result.scalars().all()
+
+    # If no local results, try profile provider's search
+    if not stocks:
+        from app.services.data.registry import get_profiles
+        try:
+            profiles = get_profiles(current_user.settings)
+            # Use search_ticker to find matching stocks
+            search_results = await profiles.search_ticker(q)
+
+            for result in search_results:
+                # Check if stock already exists in DB
+                existing = await db.execute(select(Stock).where(Stock.ticker == result.ticker))
+                stock = existing.scalar_one_or_none()
+
+                if not stock:
+                    # Get full profile for new stocks
+                    try:
+                        profile = await profiles.get_company_profile(result.ticker)
+                        stock = Stock(
+                            ticker=result.ticker,
+                            company_name=profile.company_name or result.name,
+                            exchange=profile.exchange,
+                            sector=profile.sector,
+                            industry=profile.industry,
+                        )
+                    except Exception:
+                        stock = Stock(
+                            ticker=result.ticker,
+                            company_name=result.name,
+                            exchange=result.exchange,
+                        )
+                    db.add(stock)
+
+            await db.flush()
+
+            # Re-query to get all stocks
+            result = await db.execute(
+                select(Stock).where(
+                    Stock.ticker.ilike(f"%{q}%") | Stock.company_name.ilike(f"%{q}%")
+                ).limit(20)
+            )
+            stocks = result.scalars().all()
+        except Exception as e:
+            logger.error(f"Failed to search for {q}: {e}")
+
     return [
         StockResponse(
             id=str(s.id), ticker=s.ticker, company_name=s.company_name,

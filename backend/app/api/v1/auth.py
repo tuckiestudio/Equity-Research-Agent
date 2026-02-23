@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.errors import AppError, AuthenticationError
 from app.core.limiter import limiter
 from app.db.session import get_db
+from app.models.stock import Portfolio
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.services.auth import create_access_token, hash_password, verify_password
@@ -70,6 +71,10 @@ async def register(request: Request, body: RegisterRequest, db: AsyncSession = D
 
     settings_row = UserSettings(user_id=user.id)
     db.add(settings_row)
+
+    # Create default portfolio
+    default_portfolio = Portfolio(name="My Portfolio", user_id=user.id)
+    db.add(default_portfolio)
 
     admin_emails = {
         email.strip().lower()

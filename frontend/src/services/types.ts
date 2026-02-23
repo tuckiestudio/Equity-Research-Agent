@@ -40,15 +40,26 @@ export interface StockDetail extends Stock {
 }
 
 // Portfolio types
-export interface Portfolio {
+export interface PortfolioSummary {
+  id: string
+  name: string
+  stock_count: number
+  stocks?: Stock[]
+}
+
+export interface PortfolioDetail {
   id: string
   name: string
   description?: string
-  user_id: string
-  created_at: string
-  updated_at: string
+  user_id?: string
+  created_at?: string
+  updated_at?: string
   stocks: Stock[]
+  stock_count?: number
 }
+
+// Use PortfolioDetail as the main type, PortfolioSummary for list responses
+export type Portfolio = PortfolioSummary | PortfolioDetail
 
 export interface CreatePortfolioRequest {
   name: string

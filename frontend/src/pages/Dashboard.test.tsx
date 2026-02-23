@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Dashboard from './Dashboard'
 import { QueryClient } from '@tanstack/react-query'
@@ -12,9 +12,7 @@ vi.mock('@/services/portfolios', () => ({
       {
         id: 'portfolio-1',
         name: 'My Portfolio',
-        user_id: 'user-123',
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
+        stock_count: 2,
         stocks: [
           {
             id: 'stock-1',
@@ -83,7 +81,7 @@ describe('Dashboard Page', () => {
       vi.mocked(getPortfolios).mockImplementationOnce(
         () => new Promise(resolve => setTimeout(() => resolve({
           data: []
-        }), 100))
+        } as any), 100))
       )
 
       renderWithProviders(<Dashboard />, { queryClient })

@@ -6,6 +6,9 @@ import Register from '@/pages/Register'
 import Dashboard from '@/pages/Dashboard'
 import StockDetail from '@/pages/StockDetail'
 import Settings from '@/pages/Settings'
+import Portfolio from '@/pages/Portfolio'
+import Search from '@/pages/Search'
+import Market from '@/pages/Market'
 
 function App() {
   return (
@@ -16,6 +19,9 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/market" element={<Market />} />
             <Route path="/stock/:ticker" element={<StockDetail />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
