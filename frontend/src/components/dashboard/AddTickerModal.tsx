@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { searchStocks } from '@/services/stocks'
-import { addStockToPortfolio } from '@/services/portfolios'
+import { addStockToPortfolio, createPortfolio } from '@/services/portfolios'
 import type { StockSearchResult } from '@/services/types'
-import { X, Search, Loader2 } from 'lucide-react'
+import { X, Search, Loader2, Plus } from 'lucide-react'
 import clsx from 'clsx'
 
 interface AddTickerModalProps {
@@ -20,6 +20,8 @@ export default function AddTickerModal({
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newPortfolioName, setNewPortfolioName] = useState('')
 
   // Debounce search input
   useEffect(() => {
@@ -36,11 +38,11 @@ export default function AddTickerModal({
       const response = await searchStocks(debouncedQuery)
       return response.data
     },
-    enabled: debouncedQuery.length >= 2,
+    enabled: debouncedQuery.length >= 2 && !showCreateForm,
   })
 
-  // Get first portfolio ID (simplified for MVP)
-  const { data: portfolios } = useQuery({
+  // Get portfolios
+  const { data: portfolios, refetch: refetchPortfolios } = useQuery({
     queryKey: ['portfolios'],
     queryFn: async () => {
       const { getPortfolios } = await import('@/services/portfolios')
@@ -51,6 +53,18 @@ export default function AddTickerModal({
   })
 
   const portfolioId = portfolios?.[0]?.id
+
+  // Create portfolio mutation
+  const createPortfolioMutation = useMutation({
+    mutationFn: async (name: string) => {
+      await createPortfolio({ name })
+    },
+    onSuccess: () => {
+      refetchPortfolios()
+      setShowCreateForm(false)
+      setNewPortfolioName('')
+    },
+  })
 
   // Add stock mutation
   const addStockMutation = useMutation({
@@ -67,10 +81,106 @@ export default function AddTickerModal({
     },
   })
 
+  const handleCreatePortfolio = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPortfolioName.trim()) {
+      createPortfolioMutation.mutate(newPortfolioName.trim())
+    }
+  }
+
   if (!isOpen) return null
 
   const handleSelectStock = (ticker: string) => {
     addStockMutation.mutate(ticker)
+  }
+
+  // Show create portfolio form if no portfolios exist
+  if (!portfolioId && !showCreateForm) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative w-full max-w-lg glass-card animate-slide-up">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-text-primary">
+              No Portfolio Found
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-elevated rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-text-secondary mb-6">
+            You need to create a portfolio before you can add stocks.
+          </p>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-accent hover:bg-accent-hover text-white rounded-lg font-medium transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Create Portfolio
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show create portfolio form
+  if (showCreateForm) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative w-full max-w-lg glass-card animate-slide-up">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-text-primary">
+              Create Portfolio
+            </h2>
+            <button
+              onClick={() => setShowCreateForm(false)}
+              className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-elevated rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <form onSubmit={handleCreatePortfolio}>
+            <input
+              type="text"
+              value={newPortfolioName}
+              onChange={(e) => setNewPortfolioName(e.target.value)}
+              placeholder="Enter portfolio name"
+              className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent mb-3"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={createPortfolioMutation.isPending || !newPortfolioName.trim()}
+                className="flex-1 px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                {createPortfolioMutation.isPending ? 'Creating...' : 'Create'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateForm(false)
+                  setNewPortfolioName('')
+                }}
+                className="px-4 py-2 text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (
