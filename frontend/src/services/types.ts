@@ -23,9 +23,12 @@ export interface Stock {
 }
 
 export interface StockSearchResult {
+  id: string
   ticker: string
-  name: string
-  exchange: string
+  company_name: string
+  exchange?: string
+  sector?: string
+  industry?: string
 }
 
 export interface StockDetail extends Stock {

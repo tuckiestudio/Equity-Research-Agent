@@ -101,12 +101,12 @@ class TestCompsEngine:
         monkeypatch.setattr(
             comps_module,
             "get_fundamentals",
-            lambda: DummyFundamentals(ratios, {"TGT": [income]}),
+            lambda user_settings=None: DummyFundamentals(ratios, {"TGT": [income]}),
         )
         monkeypatch.setattr(
             comps_module,
             "get_profiles",
-            lambda: DummyProfiles(profiles),
+            lambda user_settings=None: DummyProfiles(profiles),
         )
 
         result = await engine.analyze("TGT", ["PEER"])
@@ -172,12 +172,12 @@ class TestCompsEngine:
         monkeypatch.setattr(
             comps_module,
             "get_fundamentals",
-            lambda: DummyFundamentals(ratios, {"TGT": [income]}),
+            lambda user_settings=None: DummyFundamentals(ratios, {"TGT": [income]}),
         )
         monkeypatch.setattr(
             comps_module,
             "get_profiles",
-            lambda: DummyProfiles(profiles),
+            lambda user_settings=None: DummyProfiles(profiles),
         )
 
         result = await engine.analyze("TGT", ["PEER"], consensus_forecasts=consensus)

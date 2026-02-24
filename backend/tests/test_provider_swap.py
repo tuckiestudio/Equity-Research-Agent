@@ -3,7 +3,7 @@ Tests for data provider registry and swapping functionality.
 
 Tests verify:
 1. Registry correctly initializes configured providers
-2. Provider fallback/aggregator works as expected
+2. Provider caching works correctly with different API keys
 3. Invalid provider configurations are handled gracefully
 
 Note: Provider classes are imported within tests rather than at module level
@@ -35,6 +35,7 @@ from app.services.data.registry import (
 # =============================================================================
 # Registry Tests
 # =============================================================================
+
 
 class TestProviderRegistry:
     """Test suite for provider registry functionality."""
@@ -110,128 +111,142 @@ class TestProviderRegistry:
 
 
 # =============================================================================
-# Provider Initialization Tests
+# Provider Caching Tests
 # =============================================================================
 
-class TestProviderInitialization:
-    """Test suite for provider initialization from config."""
+
+class TestProviderCaching:
+    """Test suite for provider instance caching."""
 
     @pytest.fixture
-    def reset_providers(self):
-        """Reset global provider instances before each test."""
+    def reset_provider_instances(self):
+        """Reset provider instance caches before each test."""
         from app.services.data.registry import (
-            _fundamentals,
-            _fundamentals_providers,
-            _news,
-            _news_providers,
-            _price_providers,
-            _prices,
-            _profile_providers,
-            _profiles,
+            _fundamentals_instances,
+            _news_instances,
+            _price_instances,
+            _profile_instances,
         )
 
-        # Store original registrations
-        original_fundamentals = dict(_fundamentals_providers)
-        original_prices = dict(_price_providers)
-        original_profiles = dict(_profile_providers)
-        original_news = dict(_news_providers)
+        # Store original state
+        original_fundamentals = dict(_fundamentals_instances)
+        original_prices = dict(_price_instances)
+        original_profiles = dict(_profile_instances)
+        original_news = dict(_news_instances)
 
-        # Clear provider instances
-        _fundamentals = None
-        _prices = None
-        _profiles = None
-        _news = None
+        try:
+            # Clear instances
+            _fundamentals_instances.clear()
+            _price_instances.clear()
+            _profile_instances.clear()
+            _news_instances.clear()
 
-        yield
+            yield
+        finally:
+            # Restore original state
+            _fundamentals_instances.clear()
+            _price_instances.clear()
+            _profile_instances.clear()
+            _news_instances.clear()
 
-        # Reset after test - restore registrations
-        _fundamentals_providers.clear()
-        _price_providers.clear()
-        _profile_providers.clear()
-        _news_providers.clear()
+            _fundamentals_instances.update(original_fundamentals)
+            _price_instances.update(original_prices)
+            _profile_instances.update(original_profiles)
+            _news_instances.update(original_news)
 
-        _fundamentals_providers.update(original_fundamentals)
-        _price_providers.update(original_prices)
-        _profile_providers.update(original_profiles)
-        _news_providers.update(original_news)
-
-        _fundamentals = None
-        _prices = None
-        _profiles = None
-        _news = None
-
-    @pytest.mark.asyncio
-    async def test_initialize_yfinance_provider(self, reset_providers):
-        """Test initializing yfinance as fundamentals provider."""
+    def test_get_fundamentals_cached(self, reset_provider_instances, monkeypatch):
+        """Test that get_fundamentals returns cached instance."""
+        from app.services.data.registry import _fundamentals_instances, _fundamentals_providers
         from app.services.data.providers.yfinance_provider import YFinanceProvider
 
-        # Manually register yfinance (skipping settings patch which doesn't work with pydantic)
-        from app.services.data.registry import (
-            _fundamentals_providers,
-            register_fundamentals,
-        )
-        register_fundamentals("yfinance", YFinanceProvider)
+        # Register yfinance and set as default
+        if "yfinance" not in _fundamentals_providers:
+            register_fundamentals("yfinance", YFinanceProvider)
 
-        # Create instance directly (simulating what initialize_providers does)
-        from app.services.data.registry import _get_api_key
-        _fundamentals = _fundamentals_providers["yfinance"](api_key=_get_api_key("yfinance"))
+        monkeypatch.setattr("app.services.data.registry.global_settings.FUNDAMENTALS_PROVIDER", "yfinance")
 
-        assert isinstance(_fundamentals, YFinanceProvider)
-        assert _fundamentals.provider_name == "yfinance"
+        # Clear any existing yfinance instances
+        keys_to_remove = [k for k in _fundamentals_instances if k[0] == "yfinance"]
+        for key in keys_to_remove:
+            del _fundamentals_instances[key]
 
-    @pytest.mark.asyncio
-    async def test_initialize_finnhub_price_provider(self, reset_providers):
-        """Test initializing Finnhub as price provider."""
+        # First call creates instance
+        provider1 = get_fundamentals()
+
+        # Second call returns same instance
+        provider2 = get_fundamentals()
+
+        assert provider1 is provider2
+
+    def test_get_prices_cached(self, reset_provider_instances, monkeypatch):
+        """Test that get_prices returns cached instance."""
+        from app.services.data.registry import _price_instances, _price_providers
+        from app.services.data.providers.yfinance_provider import YFinanceProvider
+
+        # Register yfinance and set as default
+        if "yfinance" not in _price_providers:
+            register_prices("yfinance", YFinanceProvider)
+
+        monkeypatch.setattr("app.services.data.registry.global_settings.PRICE_PROVIDER", "yfinance")
+
+        # Clear any existing yfinance instances
+        keys_to_remove = [k for k in _price_instances if k[0] == "yfinance"]
+        for key in keys_to_remove:
+            del _price_instances[key]
+
+        provider1 = get_prices()
+        provider2 = get_prices()
+
+        assert provider1 is provider2
+
+    def test_get_profiles_cached(self, reset_provider_instances, monkeypatch):
+        """Test that get_profiles returns cached instance."""
+        from app.services.data.registry import _profile_instances, _profile_providers
+        from app.services.data.providers.yfinance_provider import YFinanceProvider
+
+        # Register yfinance and set as default
+        if "yfinance" not in _profile_providers:
+            register_profiles("yfinance", YFinanceProvider)
+
+        monkeypatch.setattr("app.services.data.registry.global_settings.PROFILE_PROVIDER", "yfinance")
+
+        # Clear any existing yfinance instances
+        keys_to_remove = [k for k in _profile_instances if k[0] == "yfinance"]
+        for key in keys_to_remove:
+            del _profile_instances[key]
+
+        provider1 = get_profiles()
+        provider2 = get_profiles()
+
+        assert provider1 is provider2
+
+    def test_get_news_cached(self, reset_provider_instances, monkeypatch):
+        """Test that get_news returns cached instance."""
+        from app.services.data.registry import _news_instances, _news_providers
         from app.services.data.providers.finnhub import FinnhubProvider
 
-        # Manually register finnhub
-        from app.services.data.registry import (
-            _price_providers,
-            register_prices,
-        )
-        register_prices("finnhub", FinnhubProvider)
+        # Register finnhub and set as default with a test key
+        if "finnhub" not in _news_providers:
+            register_news("finnhub", FinnhubProvider)
 
-        # Create instance directly with a test key
-        _prices = _price_providers["finnhub"](api_key="test_key")
+        monkeypatch.setattr("app.services.data.registry.global_settings.NEWS_PROVIDER", "finnhub")
+        monkeypatch.setattr("app.services.data.registry.global_settings.FINNHUB_API_KEY", "test_key")
 
-        assert isinstance(_prices, FinnhubProvider)
-        assert _prices.provider_name == "finnhub"
+        # Clear any existing finnhub instances
+        keys_to_remove = [k for k in _news_instances if k[0] == "finnhub"]
+        for key in keys_to_remove:
+            del _news_instances[key]
 
-    def test_get_provider_before_initialization(self):
-        """Test that accessing a provider before initialization raises RuntimeError."""
-        from app.services.data.registry import (
-            _fundamentals,
-            _news,
-            _prices,
-            _profiles,
-        )
+        provider1 = get_news()
+        provider2 = get_news()
 
-        # Reset providers to None
-        _fundamentals = None
-        _prices = None
-        _profiles = None
-        _news = None
-
-        with pytest.raises(RuntimeError) as exc_info:
-            get_fundamentals()
-        assert "not initialized" in str(exc_info.value)
-
-        with pytest.raises(RuntimeError) as exc_info:
-            get_prices()
-        assert "not initialized" in str(exc_info.value)
-
-        with pytest.raises(RuntimeError) as exc_info:
-            get_profiles()
-        assert "not initialized" in str(exc_info.value)
-
-        with pytest.raises(RuntimeError) as exc_info:
-            get_news()
-        assert "not initialized" in str(exc_info.value)
+        assert provider1 is provider2
 
 
 # =============================================================================
 # Provider Protocol Conformance Tests
 # =============================================================================
+
 
 class TestProviderProtocols:
     """Test that providers correctly implement their protocols."""
@@ -305,110 +320,9 @@ class TestProviderProtocols:
 
 
 # =============================================================================
-# Provider Swap Tests
-# =============================================================================
-
-class TestProviderSwap:
-    """Test suite for provider swapping functionality."""
-
-    @pytest.fixture
-    def reset_providers(self):
-        """Reset global provider instances and registrations before each test."""
-        from app.services.data.registry import (
-            _fundamentals,
-            _fundamentals_providers,
-            _news,
-            _news_providers,
-            _price_providers,
-            _prices,
-            _profile_providers,
-            _profiles,
-        )
-
-        # Store original registrations
-        original_fundamentals = dict(_fundamentals_providers)
-        original_prices = dict(_price_providers)
-        original_profiles = dict(_profile_providers)
-        original_news = dict(_news_providers)
-
-        # Clear provider instances
-        _fundamentals = None
-        _prices = None
-        _profiles = None
-        _news = None
-
-        yield
-
-        # Reset after test - restore registrations
-        _fundamentals_providers.clear()
-        _price_providers.clear()
-        _profile_providers.clear()
-        _news_providers.clear()
-
-        _fundamentals_providers.update(original_fundamentals)
-        _price_providers.update(original_prices)
-        _profile_providers.update(original_profiles)
-        _news_providers.update(original_news)
-
-        _fundamentals = None
-        _prices = None
-        _profiles = None
-        _news = None
-
-    @pytest.mark.asyncio
-    async def test_swap_from_yfinance_to_finnhub_prices(self, reset_providers):
-        """Test swapping price providers from yfinance to Finnhub."""
-        from app.services.data.providers.finnhub import FinnhubProvider
-        from app.services.data.providers.yfinance_provider import YFinanceProvider
-        from app.services.data.registry import (
-            _get_api_key,
-            _price_providers,
-            register_prices,
-        )
-
-        # Manually register both providers
-        register_prices("yfinance", YFinanceProvider)
-        register_prices("finnhub", FinnhubProvider)
-
-        # Simulate swap - set yfinance first
-        from app.services.data.registry import _prices
-        _prices = _price_providers["yfinance"](api_key=_get_api_key("yfinance"))
-        assert isinstance(_prices, YFinanceProvider)
-        assert _prices.provider_name == "yfinance"
-
-        # Swap to finnhub
-        _prices = _price_providers["finnhub"](api_key="test_key")
-        assert _prices.provider_name == "finnhub"
-
-    @pytest.mark.asyncio
-    async def test_swap_from_finnhub_to_yfinance_profiles(self, reset_providers):
-        """Test swapping profile providers from Finnhub to yfinance."""
-        from app.services.data.providers.finnhub import FinnhubProvider
-        from app.services.data.providers.yfinance_provider import YFinanceProvider
-        from app.services.data.registry import (
-            _get_api_key,
-            _profile_providers,
-            register_profiles,
-        )
-
-        # Manually register both providers
-        register_profiles("finnhub", FinnhubProvider)
-        register_profiles("yfinance", YFinanceProvider)
-
-        # Simulate swap - set finnhub first
-        from app.services.data.registry import _profiles
-        _profiles = _profile_providers["finnhub"](api_key="test_key")
-        assert isinstance(_profiles, FinnhubProvider)
-        assert _profiles.provider_name == "finnhub"
-
-        # Swap to yfinance
-        _profiles = _profile_providers["yfinance"](api_key=_get_api_key("yfinance"))
-        assert _profiles.provider_name == "yfinance"
-
-
-# =============================================================================
 # Provider Error Handling Tests
 # =============================================================================
+
 
 class TestProviderErrorHandling:
     """Test suite for provider error handling."""
@@ -437,10 +351,24 @@ class TestProviderErrorHandling:
         provider = YFinanceProvider(api_key="")
         assert provider.provider_name == "yfinance"
 
+    def test_unknown_provider_raises_runtimeerror(self):
+        """Test that unknown provider raises RuntimeError."""
+        from unittest.mock import patch
+
+        # Patch settings to return unknown provider
+        with patch("app.services.data.registry.global_settings") as mock_settings:
+            mock_settings.FUNDAMENTALS_PROVIDER = "unknown_provider"
+            mock_settings.FMP_API_KEY = ""
+
+            with pytest.raises(RuntimeError) as exc_info:
+                get_fundamentals()
+            assert "Unknown fundamentals provider" in str(exc_info.value)
+
 
 # =============================================================================
 # Integration Tests (with mocked providers)
 # =============================================================================
+
 
 class TestProviderIntegration:
     """Integration tests with mocked provider responses."""
@@ -500,3 +428,86 @@ class TestProviderIntegration:
             assert quote.ticker == "AAPL"
             assert quote.price == 150.25
             assert quote.source == "finnhub"
+
+
+# =============================================================================
+# Provider Selection Tests
+# =============================================================================
+
+
+class TestProviderSelection:
+    """Test provider selection based on settings."""
+
+    def test_fundamentals_provider_selection_with_yfinance(self):
+        """Test that yfinance fundamentals provider works without API key."""
+        from unittest.mock import patch
+
+        from app.services.data.providers.yfinance_provider import YFinanceProvider
+        from app.services.data.registry import _fundamentals_providers
+
+        # Store original
+        original = dict(_fundamentals_providers)
+
+        try:
+            # Register yfinance and patch settings to use it
+            _fundamentals_providers.clear()
+            register_fundamentals("yfinance", YFinanceProvider)
+
+            with patch("app.services.data.registry.global_settings") as mock_settings:
+                mock_settings.FUNDAMENTALS_PROVIDER = "yfinance"
+                mock_settings.FMP_API_KEY = ""
+
+                provider = get_fundamentals()
+                assert provider is not None
+                assert provider.provider_name == "yfinance"
+        finally:
+            _fundamentals_providers.clear()
+            _fundamentals_providers.update(original)
+
+    def test_price_provider_selection_with_yfinance(self):
+        """Test that yfinance price provider works without API key."""
+        from unittest.mock import patch
+
+        from app.services.data.providers.yfinance_provider import YFinanceProvider
+        from app.services.data.registry import _price_providers
+
+        # Store original
+        original = dict(_price_providers)
+
+        try:
+            _price_providers.clear()
+            register_prices("yfinance", YFinanceProvider)
+
+            with patch("app.services.data.registry.global_settings") as mock_settings:
+                mock_settings.PRICE_PROVIDER = "yfinance"
+
+                provider = get_prices()
+                assert provider is not None
+                assert provider.provider_name == "yfinance"
+        finally:
+            _price_providers.clear()
+            _price_providers.update(original)
+
+    def test_profile_provider_selection_with_yfinance(self):
+        """Test that yfinance profile provider works without API key."""
+        from unittest.mock import patch
+
+        from app.services.data.providers.yfinance_provider import YFinanceProvider
+        from app.services.data.registry import _profile_providers
+
+        # Store original
+        original = dict(_profile_providers)
+
+        try:
+            _profile_providers.clear()
+            register_profiles("yfinance", YFinanceProvider)
+
+            with patch("app.services.data.registry.global_settings") as mock_settings:
+                mock_settings.PROFILE_PROVIDER = "yfinance"
+
+                provider = get_profiles()
+                assert provider is not None
+                assert provider.provider_name == "yfinance"
+        finally:
+            _profile_providers.clear()
+            _profile_providers.update(original)

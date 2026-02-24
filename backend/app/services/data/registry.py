@@ -119,10 +119,17 @@ def get_fundamentals(user_settings: Optional[UserSettings] = None) -> Fundamenta
     provider_name = user_settings.fundamentals_provider if user_settings else global_settings.FUNDAMENTALS_PROVIDER
     if provider_name not in _fundamentals_providers:
         raise RuntimeError(f"Unknown fundamentals provider: {provider_name}")
-    
+
     api_key = _get_api_key(provider_name, user_settings)
+
+    # Fall back to yfinance if provider requires API key but none is provided
+    if provider_name != "yfinance" and not api_key:
+        logger.warning(f"{provider_name} requires API key but none found, falling back to yfinance")
+        provider_name = "yfinance"
+        api_key = ""
+
     cache_key = (provider_name, api_key)
-    
+
     with _lock:
         if cache_key not in _fundamentals_instances:
             _fundamentals_instances[cache_key] = _fundamentals_providers[provider_name](api_key=api_key)
@@ -132,10 +139,17 @@ def get_prices(user_settings: Optional[UserSettings] = None) -> PriceProvider:
     provider_name = user_settings.price_provider if user_settings else global_settings.PRICE_PROVIDER
     if provider_name not in _price_providers:
         raise RuntimeError(f"Unknown price provider: {provider_name}")
-    
+
     api_key = _get_api_key(provider_name, user_settings)
+
+    # Fall back to yfinance if provider requires API key but none is provided
+    if provider_name != "yfinance" and not api_key:
+        logger.warning(f"{provider_name} requires API key but none found, falling back to yfinance")
+        provider_name = "yfinance"
+        api_key = ""
+
     cache_key = (provider_name, api_key)
-    
+
     with _lock:
         if cache_key not in _price_instances:
             _price_instances[cache_key] = _price_providers[provider_name](api_key=api_key)
@@ -145,10 +159,17 @@ def get_profiles(user_settings: Optional[UserSettings] = None) -> ProfileProvide
     provider_name = user_settings.profile_provider if user_settings else global_settings.PROFILE_PROVIDER
     if provider_name not in _profile_providers:
         raise RuntimeError(f"Unknown profile provider: {provider_name}")
-    
+
     api_key = _get_api_key(provider_name, user_settings)
+
+    # Fall back to yfinance if provider requires API key but none is provided
+    if provider_name != "yfinance" and not api_key:
+        logger.warning(f"{provider_name} requires API key but none found, falling back to yfinance")
+        provider_name = "yfinance"
+        api_key = ""
+
     cache_key = (provider_name, api_key)
-    
+
     with _lock:
         if cache_key not in _profile_instances:
             _profile_instances[cache_key] = _profile_providers[provider_name](api_key=api_key)
@@ -158,10 +179,26 @@ def get_news(user_settings: Optional[UserSettings] = None) -> NewsProvider:
     provider_name = user_settings.news_provider if user_settings else global_settings.NEWS_PROVIDER
     if provider_name not in _news_providers:
         raise RuntimeError(f"Unknown news provider: {provider_name}")
-    
+
     api_key = _get_api_key(provider_name, user_settings)
+
+    # For news, only finnhub and fmp are available. If no API key, return a stub provider
+    if not api_key:
+        # Return a no-op provider instead of crashing
+        class NoOpNewsProvider:
+            provider_name = "noop"
+            async def get_news(self, ticker: str, limit: int = 20) -> list:
+                return []
+
+        if provider_name == "yfinance":
+            # yfinance doesn't implement news, return empty list
+            return NoOpNewsProvider()
+
+        logger.debug(f"{provider_name} requires API key but none found, returning empty news")
+        return NoOpNewsProvider()
+
     cache_key = (provider_name, api_key)
-    
+
     with _lock:
         if cache_key not in _news_instances:
             _news_instances[cache_key] = _news_providers[provider_name](api_key=api_key)

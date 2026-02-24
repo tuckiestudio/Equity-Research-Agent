@@ -268,11 +268,11 @@ export default function AddTickerModal({
                         {result.ticker.toUpperCase()}
                       </span>
                       <span className="text-text-primary truncate">
-                        {result.name}
+                        {result.company_name}
                       </span>
                     </div>
                     <p className="text-sm text-text-secondary mt-1">
-                      {result.exchange}
+                      {result.exchange || result.sector || result.industry}
                     </p>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent">

@@ -137,7 +137,7 @@ class TestWatchService:
 
         monkeypatch.setattr(
             "app.services.thesis.watch.get_profiles",
-            lambda: FakeProfiles(),
+            lambda user_settings=None: FakeProfiles(),
         )
 
         service = WatchService(mock_router)
@@ -164,7 +164,7 @@ class TestWatchService:
 
         monkeypatch.setattr(
             "app.services.thesis.watch.get_profiles",
-            lambda: FakeProfiles(),
+            lambda user_settings=None: FakeProfiles(),
         )
 
         service = WatchService(mock_router)

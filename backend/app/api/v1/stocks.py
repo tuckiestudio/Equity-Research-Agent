@@ -3,6 +3,7 @@ Stocks API endpoints — search, fetch, detail.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -69,39 +70,50 @@ async def search_stocks(
             # Use search_ticker to find matching stocks
             search_results = await profiles.search_ticker(q)
 
-            for result in search_results:
-                # Check if stock already exists in DB
-                existing = await db.execute(select(Stock).where(Stock.ticker == result.ticker))
-                stock = existing.scalar_one_or_none()
+            if search_results:
+                # Build list of stocks to return directly from search results
+                response_stocks = []
+                for result in search_results:
+                    # Check if stock already exists in DB
+                    existing = await db.execute(select(Stock).where(Stock.ticker == result.ticker))
+                    stock = existing.scalar_one_or_none()
 
-                if not stock:
-                    # Get full profile for new stocks
-                    try:
-                        profile = await profiles.get_company_profile(result.ticker)
-                        stock = Stock(
-                            ticker=result.ticker,
-                            company_name=profile.company_name or result.name,
-                            exchange=profile.exchange,
-                            sector=profile.sector,
-                            industry=profile.industry,
-                        )
-                    except Exception:
-                        stock = Stock(
-                            ticker=result.ticker,
-                            company_name=result.name,
-                            exchange=result.exchange,
-                        )
-                    db.add(stock)
+                    if not stock:
+                        # Get full profile for new stocks
+                        try:
+                            profile = await profiles.get_company_profile(result.ticker)
+                            stock = Stock(
+                                ticker=result.ticker,
+                                company_name=profile.company_name or result.name,
+                                exchange=profile.exchange,
+                                sector=profile.sector,
+                                industry=profile.industry,
+                            )
+                        except Exception:
+                            stock = Stock(
+                                ticker=result.ticker,
+                                company_name=result.name,
+                                exchange=result.exchange,
+                            )
+                        db.add(stock)
+                        response_stocks.append(stock)
+                    else:
+                        response_stocks.append(stock)
 
-            await db.flush()
+                await db.flush()
 
-            # Re-query to get all stocks
-            result = await db.execute(
-                select(Stock).where(
-                    Stock.ticker.ilike(f"%{q}%") | Stock.company_name.ilike(f"%{q}%")
-                ).limit(20)
-            )
-            stocks = result.scalars().all()
+                # Return the stocks we found/created directly
+                return [
+                    StockResponse(
+                        id=str(s.id) if s.id else str(uuid.uuid4()),
+                        ticker=s.ticker,
+                        company_name=s.company_name,
+                        exchange=s.exchange,
+                        sector=s.sector,
+                        industry=s.industry,
+                    )
+                    for s in response_stocks[:20]
+                ]
         except Exception as e:
             logger.error(f"Failed to search for {q}: {e}")
 

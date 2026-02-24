@@ -49,7 +49,7 @@ class TestCompSuggestions:
                 source="test",
             ),
         }
-        monkeypatch.setattr(comp_module, "get_profiles", lambda: DummyProfiles(profiles))
+        monkeypatch.setattr(comp_module, "get_profiles", lambda user_settings=None: DummyProfiles(profiles))
 
         mock_response = LLMResponse(
             content=json.dumps([
@@ -85,7 +85,7 @@ class TestCompSuggestions:
                 source="test",
             )
         }
-        monkeypatch.setattr(comp_module, "get_profiles", lambda: DummyProfiles(profiles))
+        monkeypatch.setattr(comp_module, "get_profiles", lambda user_settings=None: DummyProfiles(profiles))
 
         mock_response = LLMResponse(
             content=json.dumps([
@@ -134,7 +134,7 @@ class TestCompSuggestions:
                 source="test",
             ),
         }
-        monkeypatch.setattr(comp_module, "get_profiles", lambda: DummyProfiles(profiles))
+        monkeypatch.setattr(comp_module, "get_profiles", lambda user_settings=None: DummyProfiles(profiles))
 
         mock_response = LLMResponse(
             content=json.dumps([
@@ -169,7 +169,7 @@ class TestCompSuggestions:
                 source="test",
             )
         }
-        monkeypatch.setattr(comp_module, "get_profiles", lambda: DummyProfiles(profiles))
+        monkeypatch.setattr(comp_module, "get_profiles", lambda user_settings=None: DummyProfiles(profiles))
 
         mock_router = MagicMock(spec=LLMRouter)
         mock_router.complete = AsyncMock(side_effect=Exception("LLM error"))
@@ -200,7 +200,7 @@ class TestCompSuggestions:
                 source="test",
             ),
         }
-        monkeypatch.setattr(comp_module, "get_profiles", lambda: DummyProfiles(profiles))
+        monkeypatch.setattr(comp_module, "get_profiles", lambda user_settings=None: DummyProfiles(profiles))
 
         mock_response = LLMResponse(
             content=json.dumps([

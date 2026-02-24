@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
 from app.db.session import get_db
 from app.models.note import Note
 from app.models.stock import Stock
@@ -78,7 +78,28 @@ async def create_note(
     db: AsyncSession = Depends(get_db),
 ) -> NoteResponse:
     """Create a new note for a stock."""
+    from app.services.permissions import check_limits
+
     stock = await get_stock_by_ticker(ticker, db, current_user)
+
+    # Check tier limit for number of notes per stock
+    max_notes = check_limits(current_user, "notes")
+    if max_notes != -1:  # -1 means unlimited
+        # Count existing notes for this stock
+        result = await db.execute(
+            select(Note).where(
+                Note.stock_id == stock.id,
+                Note.user_id == current_user.id,
+            )
+        )
+        existing_notes = result.scalars().all()
+        if len(existing_notes) >= max_notes:
+            raise AppError(
+                status_code=403,
+                code="TIER_LIMIT_EXCEEDED",
+                detail=f"Your tier allows a maximum of {max_notes} notes per stock. "
+                       f"Please upgrade to create more.",
+            )
 
     note = Note(
         stock_id=stock.id,

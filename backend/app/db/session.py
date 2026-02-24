@@ -13,13 +13,23 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.APP_ENV == "development",
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
+# SQLite doesn't support pool_size/max_overflow, only use for PostgreSQL
+is_sqlite = "sqlite" in settings.DATABASE_URL.lower()
+
+if is_sqlite:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.APP_ENV == "development",
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.APP_ENV == "development",
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
 
 async_session_factory = async_sessionmaker(
     engine,

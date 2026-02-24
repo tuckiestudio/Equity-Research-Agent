@@ -69,6 +69,24 @@ async def create_portfolio(
     db: AsyncSession = Depends(get_db),
 ) -> PortfolioResponse:
     """Create a new portfolio."""
+    from app.services.permissions import check_limits, Tier
+
+    # Check tier limit for number of portfolios
+    max_portfolios = check_limits(current_user, "portfolios")
+    if max_portfolios != -1:  # -1 means unlimited
+        # Count existing portfolios
+        result = await db.execute(
+            select(Portfolio).where(Portfolio.user_id == current_user.id)
+        )
+        existing_portfolios = result.scalars().all()
+        if len(existing_portfolios) >= max_portfolios:
+            raise AppError(
+                status_code=403,
+                code="TIER_LIMIT_EXCEEDED",
+                detail=f"Your tier allows a maximum of {max_portfolios} portfolios. "
+                       f"Please upgrade to create more.",
+            )
+
     portfolio = Portfolio(name=body.name, user_id=current_user.id)
     db.add(portfolio)
     await db.flush()
@@ -147,6 +165,7 @@ async def add_stock_to_portfolio(
         await db.flush()
 
     portfolio.stocks.append(stock)
+    await db.commit()
     return {"message": f"Added {ticker} to portfolio '{portfolio.name}'"}
 
 
