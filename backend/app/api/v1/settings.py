@@ -162,7 +162,7 @@ async def get_llm_providers(
             name="glm",
             display_name="Z.ai (GLM)",
             description="GLM-4 models from Zhipu AI",
-            models=["glm-4", "glm-4-flash"],
+            models=["glm-4.7", "glm-4.5", "glm-4-flash"],
             has_api_key=True
         ))
 

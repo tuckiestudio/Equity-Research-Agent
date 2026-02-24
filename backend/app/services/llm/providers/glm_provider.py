@@ -27,18 +27,21 @@ class GLMProvider:
     so we use the openai SDK pointed at their base URL.
 
     Supports:
-    - glm-4-plus: Best general-purpose model
+    - glm-4.7: Latest flagship model - best reasoning & coding
+    - glm-4.5: Previous generation - balanced performance
     - glm-4-flash: Fast, cost-effective for simpler tasks
     """
 
     provider_name = "glm"
 
-    DEFAULT_MODEL = "glm-4-plus"
+    DEFAULT_MODEL = "glm-4.7"
     BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 
     # Pricing per 1M tokens (approximate, in USD)
+    # Actual Z.ai pricing: $0.60 input / $2.20 output for glm-4.7 and glm-4.5
     PRICING = {
-        "glm-4-plus": {"input": 0.70, "output": 0.70},
+        "glm-4.7": {"input": 0.60, "output": 2.20},
+        "glm-4.5": {"input": 0.60, "output": 2.20},
         "glm-4-flash": {"input": 0.01, "output": 0.01},
     }
 
