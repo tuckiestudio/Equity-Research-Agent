@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPortfolios } from '@/services/portfolios'
+import { getPortfolios, getPortfolio } from '@/services/portfolios'
 import { Plus } from 'lucide-react'
 import StockCard from '@/components/dashboard/StockCard'
 import AddTickerModal from '@/components/dashboard/AddTickerModal'
@@ -10,7 +10,7 @@ export default function Dashboard() {
 
   const {
     data: portfolios,
-    isLoading,
+    isLoading: isLoadingPortfolios,
     error,
     refetch,
   } = useQuery({
@@ -21,11 +21,29 @@ export default function Dashboard() {
     },
   })
 
+  // Fetch all portfolio details to get stocks
+  const { data: portfolioDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ['portfolios', 'details'],
+    queryFn: async () => {
+      if (!portfolios) return []
+      const details = await Promise.all(
+        portfolios.map(async (p) => {
+          const response = await getPortfolio(p.id)
+          return response.data
+        })
+      )
+      return details
+    },
+    enabled: !!portfolios,
+  })
+
+  const isLoading = isLoadingPortfolios || isLoadingDetails
+
   // Get all stocks from all portfolios (memoized to prevent unnecessary recalculations)
   const allStocks = useMemo(() => {
-    if (!Array.isArray(portfolios)) return []
-    return portfolios.flatMap((p) => p.stocks ?? [])
-  }, [portfolios])
+    if (!Array.isArray(portfolioDetails)) return []
+    return portfolioDetails.flatMap((p) => p.stocks ?? [])
+  }, [portfolioDetails])
 
   // Remove duplicates by ticker (memoized)
   const uniqueStocks = useMemo(() => {

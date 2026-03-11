@@ -38,10 +38,11 @@ export default function Register() {
     onSuccess: async (response) => {
       try {
         const { access_token } = response.data
-        // Store token first so getMe interceptor works
-        localStorage.setItem('auth_token', access_token)
 
-        // Fetch user profile
+        // Set token in store first so API interceptor can use it
+        setAuth(access_token, { id: '', email: formData.email, full_name: formData.full_name, tier: 'free' })
+
+        // Fetch user profile with authenticated request
         const { getMe } = await import('@/services/auth')
         const userResponse = await getMe()
 

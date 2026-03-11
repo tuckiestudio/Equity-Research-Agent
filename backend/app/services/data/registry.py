@@ -182,20 +182,12 @@ def get_news(user_settings: Optional[UserSettings] = None) -> NewsProvider:
 
     api_key = _get_api_key(provider_name, user_settings)
 
-    # For news, only finnhub and fmp are available. If no API key, return a stub provider
-    if not api_key:
-        # Return a no-op provider instead of crashing
-        class NoOpNewsProvider:
-            provider_name = "noop"
-            async def get_news(self, ticker: str, limit: int = 20) -> list:
-                return []
-
-        if provider_name == "yfinance":
-            # yfinance doesn't implement news, return empty list
-            return NoOpNewsProvider()
-
-        logger.debug(f"{provider_name} requires API key but none found, returning empty news")
-        return NoOpNewsProvider()
+    # Fall back to yfinance if provider requires API key but none is provided
+    # yfinance provides free news via RSS feeds (no API key required)
+    if provider_name != "yfinance" and not api_key:
+        logger.warning(f"{provider_name} requires API key but none found, falling back to yfinance for news")
+        provider_name = "yfinance"
+        api_key = ""
 
     cache_key = (provider_name, api_key)
 

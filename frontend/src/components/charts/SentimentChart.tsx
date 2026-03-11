@@ -42,7 +42,7 @@ export default function SentimentChart({ data }: SentimentChartProps) {
       </ResponsiveContainer>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="text-2xl font-bold text-text-primary">
-          {data.avg_impact_score.toFixed(1)}
+          {(data.avg_impact_score ?? 0).toFixed(1)}
         </span>
         <span className="text-xs text-text-muted">Avg Impact</span>
       </div>

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
 
 const api = axios.create({
   baseURL: '/api',
@@ -7,9 +8,10 @@ const api = axios.create({
   },
 })
 
-// Request interceptor: attach Bearer token from localStorage
+// Request interceptor: attach Bearer token from zustand store
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token')
+  // Get token from zustand store (handles persistence automatically)
+  const token = useAuthStore.getState().token
   if (token) {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
@@ -22,7 +24,7 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token')
+      useAuthStore.getState().logout()
       window.location.href = '/login'
     }
     return Promise.reject(error)

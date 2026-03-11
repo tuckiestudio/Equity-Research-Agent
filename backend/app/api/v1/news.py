@@ -124,9 +124,8 @@ async def analyze_news(
     if not stock:
         raise NotFoundError("Stock", ticker)
 
-    # Create news service with LLM router
-    # Note: In production, LLMRouter would be injected as a dependency
-    llm_router = LLMRouter()  # Would be properly initialized via DI
+    # Create news service with LLM router initialized with user settings
+    llm_router = LLMRouter(user_settings=current_user.settings)
     news_service = NewsService(llm_router=llm_router)
 
     # Fetch and analyze
@@ -162,7 +161,7 @@ async def get_news_analyses(
         raise NotFoundError("Stock", ticker)
 
     # Create news service and query
-    llm_router = LLMRouter()
+    llm_router = LLMRouter(user_settings=current_user.settings)
     news_service = NewsService(llm_router=llm_router)
 
     analyses = await news_service.get_recent_analyses(
@@ -197,7 +196,7 @@ async def get_sentiment_summary(
         raise NotFoundError("Stock", ticker)
 
     # Create news service and get summary
-    llm_router = LLMRouter()
+    llm_router = LLMRouter(user_settings=current_user.settings)
     news_service = NewsService(llm_router=llm_router)
 
     summary = await news_service.get_sentiment_summary(

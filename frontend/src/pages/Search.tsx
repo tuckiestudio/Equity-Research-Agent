@@ -77,20 +77,22 @@ export default function Search() {
   const addStockMutation = useMutation({
     mutationFn: async ({ ticker }: { ticker: string }) => {
       if (!selectedPortfolioId) {
-        throw new Error('No portfolio selected')
+        throw new Error('No portfolio selected. Please create or select a portfolio first.')
       }
-      await addStockToPortfolio(selectedPortfolioId, { ticker })
+      const response = await addStockToPortfolio(selectedPortfolioId, { ticker })
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portfolios'] })
       queryClient.invalidateQueries({ queryKey: ['stocks', 'search'] })
     },
+    onError: (error) => {
+      console.error('Failed to add stock:', error)
+    },
   })
 
   const handleAddStock = (ticker: string) => {
-    if (selectedPortfolioId) {
-      addStockMutation.mutate({ ticker })
-    }
+    addStockMutation.mutate({ ticker })
   }
 
   return (
@@ -147,6 +149,18 @@ export default function Search() {
               </option>
             ))}
           </select>
+          {addStockMutation.error && (
+            <p className="mt-2 text-sm text-danger flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {addStockMutation.error.message}
+            </p>
+          )}
+          {addStockMutation.isSuccess && (
+            <p className="mt-2 text-sm text-green-500 flex items-center gap-2">
+              <span className="w-4 h-4">✓</span>
+              Stock added successfully!
+            </p>
+          )}
         </div>
       ) : showCreateForm ? (
         <div className="glass-card mb-6">

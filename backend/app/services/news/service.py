@@ -55,7 +55,11 @@ class NewsService:
         limit: int = 20,
         user_settings=None,
     ) -> list[NewsAnalysis]:
-        """Fetch news for a ticker and run AI analysis on each article.
+        """Fetch news for a ticker and optionally run AI analysis.
+
+        This method always fetches news articles. If LLM providers are available,
+        it runs AI analysis on each article. If no LLM is available, it saves
+        basic news records without AI analysis.
 
         Args:
             ticker: Stock ticker symbol
@@ -64,10 +68,14 @@ class NewsService:
             current_thesis: Existing investment thesis for alignment check
             db: Database session
             limit: Maximum number of articles to fetch and analyze
+            user_settings: User settings for provider selection
 
         Returns:
             List of NewsAnalysis records saved to database
         """
+        # Check if we have any LLM providers available
+        has_llm = len(self._llm.get_providers()) > 0
+
         # Fetch news from the data provider
         news_provider = get_news(user_settings)
         articles = await news_provider.get_news(ticker=ticker, limit=limit)
@@ -76,18 +84,98 @@ class NewsService:
             logger.info(f"No news articles found for {ticker}")
             return []
 
-        # Analyze each article and save to database
+        if not has_llm:
+            # No LLM available - save basic news records without AI analysis
+            logger.info(f"No LLM providers available, saving {len(articles)} basic news records for {ticker}")
+            return await self._save_basic_news(
+                articles=articles,
+                stock_id=stock_id,
+                user_id=user_id,
+                db=db,
+            )
+
+        # LLM available - run full AI analysis
+        logger.info(f"Running AI analysis on {len(articles)} news articles for {ticker}")
+        return await self._analyze_news(
+            articles=articles,
+            ticker=ticker,
+            stock_id=stock_id,
+            user_id=user_id,
+            current_thesis=current_thesis,
+            db=db,
+        )
+
+    async def _save_basic_news(
+        self,
+        articles: list,
+        stock_id: uuid.UUID,
+        user_id: Optional[uuid.UUID],
+        db: AsyncSession,
+    ) -> list[NewsAnalysis]:
+        """Save news articles without AI analysis.
+
+        Creates basic NewsAnalysis records with default values for AI fields.
+        """
         analyses: list[NewsAnalysis] = []
+
+        for article in articles:
+            try:
+                analysis = NewsAnalysis(
+                    stock_id=stock_id,
+                    user_id=user_id,
+                    headline=article.headline,
+                    summary=article.summary,
+                    source_name=article.source_name,
+                    source_url=article.source_url,
+                    published_at=article.published_at,
+                    relevance_score=0.5,  # Default neutral value
+                    impact_score=0.0,  # Default neutral value
+                    impact_label="neutral",
+                    thesis_alignment="neutral",
+                    provider_sentiment_score=article.sentiment_score,
+                    data_source=article.source,
+                )
+
+                # Set empty AI fields
+                analysis.set_key_points([])
+                analysis.set_affected_metrics([])
+                analysis.ai_summary = "AI analysis not available - add an LLM API key in Settings for full analysis"
+
+                db.add(analysis)
+                analyses.append(analysis)
+
+            except Exception as e:
+                logger.error(f"Error saving basic news for {article.headline}: {e}")
+                continue
+
+        await db.commit()
+
+        for analysis in analyses:
+            await db.refresh(analysis)
+
+        return analyses
+
+    async def _analyze_news(
+        self,
+        articles: list,
+        ticker: str,
+        stock_id: uuid.UUID,
+        user_id: Optional[uuid.UUID],
+        current_thesis: Optional[str],
+        db: AsyncSession,
+    ) -> list[NewsAnalysis]:
+        """Run AI analysis on news articles and save to database."""
+        analyses: list[NewsAnalysis] = []
+
         for article in articles:
             try:
                 result = await self._analyze_article(
                     article=article,
                     ticker=ticker,
-                    company_name="",  # Could be enhanced to fetch from stock
+                    company_name="",
                     current_thesis=current_thesis,
                 )
 
-                # Create NewsAnalysis record
                 analysis = NewsAnalysis(
                     stock_id=stock_id,
                     user_id=user_id,
@@ -104,7 +192,6 @@ class NewsService:
                     data_source=article.source,
                 )
 
-                # Set JSON fields
                 analysis.set_key_points(result.key_points)
                 analysis.set_affected_metrics(result.affected_metrics)
                 analysis.ai_summary = result.ai_summary
@@ -113,16 +200,11 @@ class NewsService:
                 analyses.append(analysis)
 
             except Exception as e:
-                logger.error(
-                    f"Error analyzing article for {ticker}: {article.headline}. Error: {e}"
-                )
-                # Continue with next article
+                logger.error(f"Error analyzing article for {ticker}: {article.headline}. Error: {e}")
                 continue
 
-        # Commit all analyses
         await db.commit()
 
-        # Refresh to get IDs and timestamps
         for analysis in analyses:
             await db.refresh(analysis)
 

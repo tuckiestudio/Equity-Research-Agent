@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     GLM_API_KEY: str = ""
     KIMI_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    CHUTES_API_KEY: str = ""
 
     # --- Data Provider Selection (hot-swappable) ---
     FUNDAMENTALS_PROVIDER: str = "fmp"          # fmp | alpha_vantage | finnhub | eodhd | yfinance

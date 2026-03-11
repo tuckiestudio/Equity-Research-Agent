@@ -9,8 +9,11 @@ Uses asyncio.to_thread to wrap synchronous yfinance calls.
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
+import xml.etree.ElementTree as ET
+
+import httpx
 
 from app.core.errors import ProviderError
 from app.core.logging import get_logger
@@ -20,6 +23,7 @@ from app.schemas.financial import (
     CompanyProfile,
     FinancialRatios,
     IncomeStatement,
+    NewsItem,
     PeriodType,
     PriceBar,
     StockQuote,
@@ -489,6 +493,9 @@ class YFinanceProvider:
         """
         import httpx
 
+        results = []
+
+        # Try Yahoo Finance search API first
         search_url = "https://query1.finance.yahoo.com/v1/finance/search"
         params = {"q": query, "quotes_count": 10, "country": "US"}
 
@@ -498,7 +505,6 @@ class YFinanceProvider:
                 response.raise_for_status()
                 data = response.json()
 
-            results = []
             quotes = data.get("quotes", [])
 
             for quote in quotes[:10]:
@@ -520,34 +526,404 @@ class YFinanceProvider:
                     )
                 )
 
-            return results
+            if results:
+                return results
 
         except Exception as e:
             logger = get_logger(__name__)
             logger.debug(f"Yahoo Finance search failed for '{query}': {e}")
 
-            # Fallback: try exact match as before
+        # Fallback: if search API returned no results or failed, try direct ticker lookup
+        # First try the query as-is (in case it's a ticker symbol)
+        try:
+            ticker_obj = self._get_ticker(query)
+
+            def _fetch():
+                return ticker_obj.info
+
+            info = await self._run_sync(_fetch)
+
+            if info and (info.get("longName") or info.get("shortName")):
+                results.append(
+                    TickerSearchResult(
+                        ticker=query.upper(),
+                        name=info.get("longName") or info.get("shortName", ""),
+                        exchange=info.get("exchange"),
+                        type="stock",
+                    )
+                )
+                return results
+        except Exception:
+            pass
+
+        # Additional fallback: try common ticker mappings for well-known companies
+        # This handles cases like "walmart" -> "WMT", "microsoft" -> "MSFT", etc.
+        common_tickers = {
+            "walmart": "WMT",
+            "target": "TGT",
+            "costco": "COST",
+            "amazon": "AMZN",
+            "google": "GOOGL",
+            "alphabet": "GOOGL",
+            "microsoft": "MSFT",
+            "apple": "AAPL",
+            "tesla": "TSLA",
+            "netflix": "NFLX",
+            "meta": "META",
+            "facebook": "META",
+            "nvidia": "NVDA",
+            "jpmorgan": "JPM",
+            "chase": "JPM",
+            "bank of america": "BAC",
+            "wells fargo": "WFC",
+            "goldman sachs": "GS",
+            "morgan stanley": "MS",
+            "visa": "V",
+            "mastercard": "MA",
+            "paypal": "PYPL",
+            "intel": "INTC",
+            "amd": "AMD",
+            "qualcomm": "QCOM",
+            "cisco": "CSCO",
+            "oracle": "ORCL",
+            "ibm": "IBM",
+            "salesforce": "CRM",
+            "adobe": "ADBE",
+            "sap": "SAP",
+            "accenture": "ACN",
+            "boeing": "BA",
+            "airbus": "AIR",
+            "lockheed martin": "LMT",
+            "general dynamics": "GD",
+            "caterpillar": "CAT",
+            "deere": "DE",
+            "3m": "MMM",
+            "honeywell": "HON",
+            "unitedhealth": "UNH",
+            "johnson & johnson": "JNJ",
+            "johnson and johnson": "JNJ",
+            "pfizer": "PFE",
+            "merck": "MRK",
+            "abbvie": "ABBV",
+            "thermo fisher": "TMO",
+            "danaher": "DHR",
+            "roche": "RHHBY",
+            "novartis": "NVS",
+            "gilead": "GILD",
+            "bristol-myers squibb": "BMY",
+            "bristol myers squibb": "BMY",
+            "exxonmobil": "XOM",
+            "exxon mobil": "XOM",
+            "chevron": "CVX",
+            "conocophillips": "COP",
+            "schlumberger": "SLB",
+            "halliburton": "HAL",
+            "baker hughes": "BKR",
+            "occidental petroleum": "OXY",
+            "devon energy": "DVN",
+            "eoG resources": "EOG",
+            "pegasus": "PXD",
+            "coca-cola": "KO",
+            "cocacola": "KO",
+            "pepsi": "PEP",
+            "pepsico": "PEP",
+            "nestle": "NSRGY",
+            "unilever": "UL",
+            "procter & gamble": "PG",
+            "procter and gamble": "PG",
+            "colgate-palmolive": "CL",
+            "kimberly-clark": "KMB",
+            "mcdonald's": "MCD",
+            "mcdonalds": "MCD",
+            "starbucks": "SBUX",
+            "nike": "NKE",
+            "adidas": "ADDYY",
+            "lululemon": "LULU",
+            "under armour": "UAA",
+            "gap": "GPS",
+            "home depot": "HD",
+            "lowe's": "LOW",
+            "lowes": "LOW",
+            "menards": "MRK",
+            "best buy": "BBY",
+            "gamestop": "GME",
+            "amc": "AMC",
+            "disney": "DIS",
+            "warner bros": "WBD",
+            "paramount": "PARA",
+            "sony": "SONY",
+            "comcast": "CMCSA",
+            "verizon": "VZ",
+            "at&t": "T",
+            "at and t": "T",
+            "t-mobile": "TMUS",
+            "tmobile": "TMUS",
+            "sprint": "S",
+            "ford": "F",
+            "general motors": "GM",
+            "chevrolet": "GM",
+            "cadillac": "GM",
+            "gmc": "GM",
+            "rivian": "RIVN",
+            "lucid": "LCID",
+            "nio": "NIO",
+            "byd": "BYDDY",
+            "toyota": "TM",
+            "honda": "HMC",
+            "nissan": "NSANY",
+            "bmw": "BMWYY",
+            "mercedes-benz": "MBGYY",
+            "mercedes benz": "MBGYY",
+            "volkswagen": "VWAGY",
+            "porsche": "POAHY",
+            "ferrari": "RACE",
+            "uber": "UBER",
+            "lyft": "LYFT",
+            "doordash": "DASH",
+            "airbnb": "ABNB",
+            "booking holdings": "BKNG",
+            "expedia": "EXPE",
+            "tripadvisor": "TRIP",
+            "marriott": "MAR",
+            "hilton": "HLT",
+            "hyatt": "H",
+            "ihg": "IHG",
+            "choice hotels": "CHH",
+            "wyndham": "WH",
+            "radisson": "RDH",
+            "american airlines": "AAL",
+            "delta": "DAL",
+            "united airlines": "UAL",
+            "southwest": "LUV",
+            "jetblue": "JBLU",
+            "alaska air": "ALK",
+            "spirit airlines": "SAVE",
+            "frontier": "FYBR",
+            "carnival": "CCL",
+            "royal caribbean": "RCL",
+            "norwegian cruise line": "NCLH",
+        }
+
+        query_lower = query.lower().strip()
+        if query_lower in common_tickers:
+            ticker = common_tickers[query_lower]
             try:
-                ticker_obj = self._get_ticker(query)
+                ticker_obj = self._get_ticker(ticker)
 
                 def _fetch():
                     return ticker_obj.info
 
                 info = await self._run_sync(_fetch)
-
                 if info and (info.get("longName") or info.get("shortName")):
-                    return [
+                    results.append(
                         TickerSearchResult(
-                            ticker=query.upper(),
+                            ticker=ticker,
                             name=info.get("longName") or info.get("shortName", ""),
                             exchange=info.get("exchange"),
                             type="stock",
                         )
-                    ]
+                    )
+                    return results
             except Exception:
-                pass
+                # If ticker lookup fails, still return the ticker with the query as name
+                results.append(
+                    TickerSearchResult(
+                        ticker=ticker,
+                        name=query.title(),
+                        exchange="NYSE" if ticker not in ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "NFLX"] else "NASDAQ",
+                        type="stock",
+                    )
+                )
+                return results
 
+        return results
+
+    # ========================================================================
+    # NewsProvider Implementation
+    # ========================================================================
+
+    async def get_news(self, ticker: str, limit: int = 20) -> list[NewsItem]:
+        """
+        Get recent news for a ticker from Yahoo Finance.
+
+        Uses Yahoo Finance search API as primary source (more reliable than RSS).
+        Falls back to RSS feed if search API fails.
+
+        Args:
+            ticker: Stock symbol
+            limit: Maximum number of articles (default 20)
+
+        Returns:
+            List of NewsItem
+        """
+        logger = get_logger(__name__)
+
+        # Try Yahoo Finance search API first (more reliable)
+        news_url = "https://query1.finance.yahoo.com/v1/finance/search"
+        params = {
+            "q": ticker.upper(),
+            "quotesCount": 1,
+            "newsCount": limit,
+            "country": "US",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                response = await client.get(news_url, params=params)
+                response.raise_for_status()
+                data = response.json()
+
+            news_results = data.get("news", [])
+            articles = []
+
+            for item in news_results[:limit]:
+                try:
+                    headline = item.get("title", "")
+                    link = item.get("link", "")
+                    pub_date = item.get("providerPublishTime", 0)
+                    publisher = item.get("publisher", "Yahoo Finance")
+                    thumbnail = item.get("thumbnail", {})
+                    content_resolution = thumbnail.get("resolutions", [{}])[-1] if thumbnail else {}
+
+                    # Parse publication date (Unix timestamp)
+                    if isinstance(pub_date, int) and pub_date > 0:
+                        published_at = datetime.fromtimestamp(pub_date)
+                    else:
+                        published_at = datetime.utcnow()
+
+                    # Summary may be in different fields
+                    summary = item.get("summary") or item.get("content", {}).get("content") or ""
+
+                    articles.append(
+                        NewsItem(
+                            headline=headline,
+                            summary=summary[:500] if summary else None,
+                            source_name=publisher,
+                            source_url=link if link else None,
+                            ticker=ticker.upper(),
+                            published_at=published_at,
+                            sentiment_score=None,
+                            sentiment_label=None,
+                            relevance_score=None,
+                            source="yfinance",
+                            fetched_at=datetime.utcnow(),
+                        )
+                    )
+                except Exception as e:
+                    logger.debug(f"Error parsing news item: {e}")
+                    continue
+
+            # Sort by date (most recent first)
+            articles.sort(key=lambda x: x.published_at, reverse=True)
+
+            logger.info(f"Fetched {len(articles)} news articles for {ticker} from Yahoo Finance API")
+            return articles
+
+        except httpx.HTTPError as e:
+            logger.warning(f"Yahoo Finance API failed for {ticker}: {e}. Falling back to RSS...")
+            # Fall back to RSS feed
+            return await self._get_news_rss(ticker, limit)
+        except Exception as e:
+            logger.error(f"Unexpected error fetching news for {ticker}: {e}")
+            # Fall back to RSS feed
+            return await self._get_news_rss(ticker, limit)
+
+    async def _get_news_rss(self, ticker: str, limit: int = 20) -> list[NewsItem]:
+        """
+        Fallback: Get news from Yahoo Finance RSS feed.
+
+        Args:
+            ticker: Stock symbol
+            limit: Maximum number of articles
+
+        Returns:
+            List of NewsItem
+        """
+        logger = get_logger(__name__)
+        rss_url = f"https://finance.yahoo.com/rss/symbol/{ticker.upper()}"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(rss_url)
+                response.raise_for_status()
+                xml_content = response.text
+
+            root = ET.fromstring(xml_content)
+            namespaces = {
+                'content': 'http://purl.org/rss/1.0/modules/content/',
+                'dc': 'http://purl.org/dc/elements/1.1/',
+            }
+
+            articles = []
+            for item in root.findall('.//item'):
+                if len(articles) >= limit:
+                    break
+
+                try:
+                    headline = item.findtext('title', '')
+                    link = item.findtext('link', '')
+                    pub_date_str = item.findtext('pubDate', '')
+                    content_encoded = item.findtext('content:encoded', '', namespaces)
+                    description = item.findtext('description', '')
+
+                    published_at = datetime.utcnow()
+                    if pub_date_str:
+                        try:
+                            published_at = datetime.strptime(
+                                pub_date_str, "%a, %d %b %Y %H:%M:%S %Z"
+                            )
+                        except ValueError:
+                            try:
+                                published_at = datetime.strptime(
+                                    pub_date_str, "%a, %d %b %Y %H:%M:%S GMT"
+                                )
+                            except ValueError:
+                                pass
+
+                    summary = self._strip_html_tags(content_encoded or description or "")
+
+                    articles.append(
+                        NewsItem(
+                            headline=headline,
+                            summary=summary[:500] if summary else None,
+                            source_name="Yahoo Finance",
+                            source_url=link if link else None,
+                            ticker=ticker.upper(),
+                            published_at=published_at,
+                            sentiment_score=None,
+                            sentiment_label=None,
+                            relevance_score=None,
+                            source="yfinance",
+                            fetched_at=datetime.utcnow(),
+                        )
+                    )
+                except Exception as e:
+                    logger.debug(f"Error parsing RSS item: {e}")
+                    continue
+
+            articles.sort(key=lambda x: x.published_at, reverse=True)
+            logger.info(f"Fetched {len(articles)} news articles for {ticker} from Yahoo Finance RSS")
+            return articles
+
+        except Exception as e:
+            logger.warning(f"RSS fallback failed for {ticker}: {e}")
             return []
+
+    def _strip_html_tags(self, text: str) -> str:
+        """Strip HTML tags from text."""
+        import re
+        # Remove HTML tags
+        clean = re.sub(r'<[^<]+?>', '', text)
+        # Decode common HTML entities
+        clean = clean.replace('&nbsp;', ' ')
+        clean = clean.replace('&amp;', '&')
+        clean = clean.replace('&lt;', '<')
+        clean = clean.replace('&gt;', '>')
+        clean = clean.replace('&quot;', '"')
+        clean = clean.replace('&#39;', "'")
+        # Remove extra whitespace
+        clean = ' '.join(clean.split())
+        return clean
 
 
 # Self-registration
@@ -555,8 +931,10 @@ from app.services.data.registry import (
     register_fundamentals,
     register_prices,
     register_profiles,
+    register_news,
 )
 
 register_fundamentals("yfinance", YFinanceProvider)
 register_prices("yfinance", YFinanceProvider)
 register_profiles("yfinance", YFinanceProvider)
+register_news("yfinance", YFinanceProvider)

@@ -1,7 +1,7 @@
 """encrypt api keys
 
 Revision ID: 5434eda6045a
-Revises: 3b03004f3fed
+Revises: 4cc7ab3a2a22
 Create Date: 2026-02-22 23:54:29.705602
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision: str = '5434eda6045a'
-down_revision: Union[str, None] = '3b03004f3fed'
+down_revision: Union[str, None] = '4cc7ab3a2a22'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

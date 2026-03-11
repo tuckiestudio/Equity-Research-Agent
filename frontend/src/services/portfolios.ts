@@ -24,3 +24,14 @@ export const addStockToPortfolio = (portfolioId: string, data: AddStockRequest) 
 
 export const removeStockFromPortfolio = (portfolioId: string, ticker: string) =>
   api.delete(`/v1/portfolios/${portfolioId}/stocks/${ticker}`)
+
+export const archiveStock = (portfolioId: string, ticker: string) =>
+  api.post(`/v1/portfolios/${portfolioId}/stocks/${ticker}/archive`)
+
+export const restoreStock = (portfolioId: string, ticker: string) =>
+  api.delete(`/v1/portfolios/${portfolioId}/stocks/${ticker}/archive`)
+
+export const getArchivedStocks = (portfolioId: string) =>
+  api.get<{ id: string; ticker: string; company_name: string; exchange?: string; sector?: string }[]>(
+    `/v1/portfolios/${portfolioId}/archived-stocks`
+  )

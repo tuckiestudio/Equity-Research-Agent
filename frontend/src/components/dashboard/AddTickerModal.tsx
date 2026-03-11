@@ -70,7 +70,7 @@ export default function AddTickerModal({
   const addStockMutation = useMutation({
     mutationFn: async (ticker: string) => {
       if (!portfolioId) {
-        throw new Error('No portfolio found')
+        throw new Error('No portfolio found. Please create a portfolio first.')
       }
       await addStockToPortfolio(portfolioId, { ticker })
     },
@@ -78,6 +78,9 @@ export default function AddTickerModal({
       queryClient.invalidateQueries({ queryKey: ['portfolios'] })
       setSearchQuery('')
       onSuccess()
+    },
+    onError: (error) => {
+      console.error('Failed to add stock:', error)
     },
   })
 
@@ -232,6 +235,18 @@ export default function AddTickerModal({
 
         {/* Search Results */}
         <div className="max-h-80 overflow-auto scrollbar-thin">
+          {addStockMutation.isSuccess && (
+            <div className="text-center py-4 mb-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <p className="text-green-500 font-medium">Stock added successfully!</p>
+            </div>
+          )}
+
+          {addStockMutation.error && (
+            <div className="text-center py-4 mb-2 bg-danger/10 border border-danger/20 rounded-lg">
+              <p className="text-danger">{addStockMutation.error.message}</p>
+            </div>
+          )}
+
           {searchQuery.length < 2 && (
             <div className="text-center py-8">
               <p className="text-text-secondary">

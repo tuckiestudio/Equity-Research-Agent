@@ -3,6 +3,7 @@ export interface User {
   id: string
   email: string
   full_name: string
+  tier?: string
 }
 
 export interface AuthResponse {
@@ -121,6 +122,11 @@ export interface ApiError {
 }
 
 // User Settings
+export interface ModelRoute {
+  provider: string
+  model: string
+}
+
 export interface UserSettings {
   fundamentals_provider: string
   price_provider: string
@@ -133,6 +139,11 @@ export interface UserSettings {
   alpha_vantage_api_key?: string
   openai_api_key?: string
   anthropic_api_key?: string
+  glm_api_key?: string
+  kimi_api_key?: string
+  openrouter_api_key?: string
+  chutes_api_key?: string
+  llm_routing_preferences?: Record<string, ModelRoute>
 }
 
 export interface UserSettingsUpdate {
@@ -147,4 +158,26 @@ export interface UserSettingsUpdate {
   alpha_vantage_api_key?: string
   openai_api_key?: string
   anthropic_api_key?: string
+  glm_api_key?: string
+  kimi_api_key?: string
+  openrouter_api_key?: string
+  chutes_api_key?: string
+  llm_routing_preferences?: Record<string, ModelRoute>
+}
+
+// LLM Provider types
+export interface LLMProviderInfo {
+  name: string
+  display_name: string
+  description: string
+  models: string[]
+  has_api_key: boolean
+}
+
+export interface LLMTaskTypeInfo {
+  type: string
+  name: string
+  description: string
+  default_provider: string
+  default_model: string
 }

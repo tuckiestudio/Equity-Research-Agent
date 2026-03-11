@@ -5,11 +5,12 @@ API keys are encrypted at rest using Fernet symmetric encryption.
 """
 from __future__ import annotations
 
+import json
 import uuid
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, ForeignKey, TypeDecorator
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -49,6 +50,13 @@ class UserSettings(Base, UUIDMixin, TimestampMixin):
     _anthropic_api_key: Mapped[Optional[str]] = mapped_column("anthropic_api_key", String(512), nullable=True)
     _glm_api_key: Mapped[Optional[str]] = mapped_column("glm_api_key", String(512), nullable=True)
     _kimi_api_key: Mapped[Optional[str]] = mapped_column("kimi_api_key", String(512), nullable=True)
+    _openrouter_api_key: Mapped[Optional[str]] = mapped_column("openrouter_api_key", String(512), nullable=True)
+    _chutes_api_key: Mapped[Optional[str]] = mapped_column("chutes_api_key", String(512), nullable=True)
+
+    # LLM Routing Preferences (JSONB - stores task type to provider/model mappings)
+    llm_routing_preferences: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="settings")
@@ -214,3 +222,37 @@ class UserSettings(Base, UUIDMixin, TimestampMixin):
             self._kimi_api_key = None
         else:
             self._kimi_api_key = encrypt_value(value)
+
+    @hybrid_property
+    def openrouter_api_key(self) -> Optional[str]:
+        """Get the decrypted OpenRouter API key."""
+        if self._openrouter_api_key is None:
+            return None
+        if is_encrypted(self._openrouter_api_key):
+            return decrypt_value(self._openrouter_api_key)
+        return self._openrouter_api_key
+
+    @openrouter_api_key.setter
+    def openrouter_api_key(self, value: Optional[str]) -> None:
+        """Set the OpenRouter API key (encrypted)."""
+        if value is None or value == "":
+            self._openrouter_api_key = None
+        else:
+            self._openrouter_api_key = encrypt_value(value)
+
+    @hybrid_property
+    def chutes_api_key(self) -> Optional[str]:
+        """Get the decrypted Chutes API key."""
+        if self._chutes_api_key is None:
+            return None
+        if is_encrypted(self._chutes_api_key):
+            return decrypt_value(self._chutes_api_key)
+        return self._chutes_api_key
+
+    @chutes_api_key.setter
+    def chutes_api_key(self, value: Optional[str]) -> None:
+        """Set the Chutes API key (encrypted)."""
+        if value is None or value == "":
+            self._chutes_api_key = None
+        else:
+            self._chutes_api_key = encrypt_value(value)

@@ -62,8 +62,8 @@ export interface WatchItem {
 export const getNews = (ticker: string) =>
   api.get<NewsAnalysis[]>(`/v1/news/${ticker}`)
 
-export const analyzeNews = (ticker: string) =>
-  api.post<NewsAnalysis[]>(`/v1/news/${ticker}/analyze`)
+export const analyzeNews = (ticker: string, thesis?: string, limit: number = 20) =>
+  api.post<NewsAnalysis[]>(`/v1/news/${ticker}/analyze`, { thesis, limit })
 
 export const getSentiment = (ticker: string) =>
   api.get<SentimentSummary>(`/v1/news/${ticker}/sentiment`)

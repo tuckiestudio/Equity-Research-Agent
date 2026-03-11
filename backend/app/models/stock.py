@@ -6,7 +6,7 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import Column, ForeignKey, String, Table
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, BOOLEAN, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDMixin
@@ -17,6 +17,8 @@ portfolio_stocks = Table(
     Base.metadata,
     Column("portfolio_id", UUID(as_uuid=True), ForeignKey("portfolios.id", ondelete="CASCADE"), primary_key=True),
     Column("stock_id", UUID(as_uuid=True), ForeignKey("stocks.id", ondelete="CASCADE"), primary_key=True),
+    Column("archived_at", TIMESTAMP(timezone=True), nullable=True),
+    Column("is_archived", BOOLEAN(), nullable=False, default=False),
 )
 
 
